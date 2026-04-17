@@ -4064,8 +4064,9 @@ function ControllerJoinScreen({ initialRoomCode, onJoined, onCancel, firebaseRea
           <input
             type="text"
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={(e) => setName(sanitizeName(e.target.value))}
             placeholder="あなたの名前"
+            maxLength={10}
             className="w-full bg-gray-900 text-white px-4 py-3 rounded-xl border border-gray-600 focus:border-yellow-400 focus:outline-none text-center"
           />
         </div>
