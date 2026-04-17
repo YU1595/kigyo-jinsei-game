@@ -1,0 +1,23 @@
+# macOS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+
+# 未使用のKenneyアセット全体（assets/に必要分だけコピー済み）
+kenney_city-kit-commercial_2.1/
+kenney_mini-characters/
+
+# Claude Code プロジェクトファイル
+.claude/
+
+# エディタ
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ログ
+*.log
+npm-debug.log*

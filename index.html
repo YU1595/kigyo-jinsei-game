@@ -1,0 +1,4605 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>起業人生ゲーム ─ ZEN大 × スタートアップ</title>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone@7/babel.min.js"></script>
+<!-- Three.js 3D -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/js/controls/OrbitControls.js"></script>
+<script src="https://unpkg.com/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+<script src="https://unpkg.com/three@0.128.0/examples/js/utils/SkeletonUtils.js"></script>
+<script>
+// Three.js r128 image.decode() patch — サンドボックス環境での失敗を回避
+(function() {
+  if (typeof HTMLImageElement !== 'undefined') {
+    HTMLImageElement.prototype.decode = function() {
+      const img = this;
+      return new Promise(function(resolve) {
+        // 画像ロード済みならすぐ resolve
+        if (img.complete) { resolve(); return; }
+        img.addEventListener('load',  resolve, { once: true });
+        img.addEventListener('error', resolve, { once: true }); // エラーでも続行
+      });
+    };
+  }
+})();
+</script>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-auth-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrious@4.0.2/dist/qrious.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;800&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      fontFamily: {
+        sans: ['"Noto Sans JP"', 'sans-serif'],
+        display: ['Poppins', '"Noto Sans JP"', 'sans-serif'],
+      },
+      colors: {
+        campus: {
+          bg: '#2a4a3a',
+          grass: '#e8f5e0',
+          road: '#f0e6c8',
+          dark: '#1a3a2a',
+          accent: '#4ecdc4',
+          accent2: '#6ac483',
+          text: '#3a5a3a',
+          textLight: '#8aaa8a',
+          border: '#b8d4a8',
+          card: 'rgba(245,250,240,0.95)',
+        }
+      }
+    },
+  },
+};
+</script>
+<style>
+* { -webkit-tap-highlight-color: transparent; }
+body { font-family: 'Noto Sans JP', sans-serif; }
+
+@keyframes confetti-fall {
+  0% { transform: translateY(-10vh) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
+}
+@keyframes dice-bounce {
+  0%, 100% { transform: scale(1) rotate(0deg); }
+  25% { transform: scale(1.3) rotate(90deg); }
+  50% { transform: scale(0.8) rotate(180deg); }
+  75% { transform: scale(1.2) rotate(270deg); }
+}
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 5px rgba(78,205,196,0.4); }
+  50% { box-shadow: 0 0 15px rgba(78,205,196,0.7), 0 0 30px rgba(78,205,196,0.2); }
+}
+@keyframes slide-up {
+  from { transform: translateY(30px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes title-glow {
+  0%, 100% { text-shadow: 0 0 10px rgba(78,205,196,0.4), 0 0 20px rgba(106,196,131,0.2); }
+  50% { text-shadow: 0 0 20px rgba(78,205,196,0.6), 0 0 40px rgba(106,196,131,0.3); }
+}
+@keyframes shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+@keyframes token-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+@keyframes goal-pulse {
+  0%, 100% { box-shadow: 0 0 8px rgba(232,160,48,0.4); }
+  50% { box-shadow: 0 0 20px rgba(232,160,48,0.7), 0 0 35px rgba(232,160,48,0.2); }
+}
+@keyframes special-pulse {
+  0%, 100% { box-shadow: 0 0 6px rgba(208,160,48,0.3); }
+  50% { box-shadow: 0 0 14px rgba(208,160,48,0.6); }
+}
+
+.animate-confetti { animation: confetti-fall 3s ease-in-out forwards; }
+.animate-dice { animation: dice-bounce 0.12s ease-in-out infinite; }
+.animate-glow { animation: pulse-glow 1.5s ease-in-out infinite; }
+.animate-slide-up { animation: slide-up 0.3s ease-out; }
+.animate-fade-in { animation: fade-in 0.3s ease-out; }
+.animate-title-glow { animation: title-glow 2s ease-in-out infinite; }
+.animate-token-bounce { animation: token-bounce 0.6s ease-in-out infinite; }
+
+/* === マップノード（マス） === */
+.map-square {
+  position: absolute;
+  width: 58px; height: 58px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.88);
+  border: 2.5px solid #5a8a5a;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  cursor: default;
+  transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+  z-index: 3;
+  font-family: 'Noto Sans JP', sans-serif;
+}
+.map-square:hover {
+  transform: scale(1.22) translateY(-4px);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+  border-color: #3a7a3a;
+}
+.map-square.sq-start {
+  width: 68px; height: 68px;
+  background: rgba(255,255,255,0.92);
+  border: 3px solid #4ecdc4;
+  box-shadow: 0 0 12px rgba(78,205,196,0.3);
+}
+.map-square.sq-goal {
+  width: 68px; height: 68px;
+  background: rgba(255,255,240,0.95);
+  border: 3px solid #e8a030;
+  animation: goal-pulse 2s ease-in-out infinite;
+}
+.map-square.sq-good {
+  background: rgba(230,255,230,0.92);
+  border-color: #5ab85a;
+}
+.map-square.sq-bad {
+  background: rgba(255,235,230,0.92);
+  border-color: #d06050;
+}
+.map-square.sq-special {
+  background: rgba(255,250,220,0.92);
+  border-color: #d0a030;
+  animation: special-pulse 2.5s ease-in-out infinite;
+}
+.map-square.sq-character {
+  background: rgba(245,228,255,0.95);
+  border-color: #9333ea;
+  animation: char-pulse 2s ease-in-out infinite;
+}
+@keyframes char-pulse {
+  0%, 100% { box-shadow: 0 0 8px rgba(147,51,234,0.5), 0 0 0 2px rgba(147,51,234,0.15); }
+  50%       { box-shadow: 0 0 18px rgba(147,51,234,0.8), 0 0 0 4px rgba(147,51,234,0.25); }
+}
+.map-square.sq-current {
+  transform: scale(1.18) translateY(-3px);
+  box-shadow: 0 0 16px rgba(78,205,196,0.5), 0 4px 12px rgba(0,0,0,0.2);
+  border-color: #4ecdc4;
+  z-index: 5;
+}
+
+/* === サイドパネル === */
+.side-card {
+  background: rgba(245,250,240,0.95);
+  border-radius: 14px;
+  padding: 14px;
+  border: 1px solid #b8d4a8;
+  color: #3a5a3a;
+}
+.side-card-title {
+  font-family: Poppins, sans-serif;
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  color: #6a9a6a;
+  letter-spacing: 0.05em;
+  padding-bottom: 6px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid #c8e0c0;
+  font-weight: 600;
+}
+</style>
+</head>
+<body class="min-h-screen overflow-x-hidden" style="background:#2a4a3a">
+
+<!-- ============================================================
+     SVG CHARACTER SYMBOLS (hidden defs, referenced via <use>)
+     viewBox: 0 0 30 40 — 2〜2.5頭身SDキャラ
+     ============================================================ -->
+<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true"
+     style="position:absolute;width:0;height:0;overflow:hidden">
+  <defs>
+
+    <!-- ===== けんと: 文系男子 (Blue) ===== -->
+    <symbol id="char-kento" viewBox="0 0 30 40">
+      <!-- 靴 -->
+      <ellipse cx="12" cy="39" rx="3.5" ry="1.5" fill="#111"/>
+      <ellipse cx="18" cy="39" rx="3.5" ry="1.5" fill="#111"/>
+      <!-- 紺スラックス（脚） -->
+      <rect x="9"  y="28" width="5" height="11" rx="2" fill="#1e3a8a"/>
+      <rect x="16" y="28" width="5" height="11" rx="2" fill="#1e3a8a"/>
+      <!-- 白シャツ胴体 -->
+      <rect x="8" y="17" width="14" height="13" rx="3" fill="white" stroke="#ddd" stroke-width="0.5"/>
+      <!-- カラー（V字） -->
+      <path d="M13,17 L15,21 L17,17" fill="none" stroke="#bbb" stroke-width="0.7"/>
+      <!-- 左腕 -->
+      <rect x="2" y="19" width="7" height="3" rx="1.5" fill="white" stroke="#ddd" stroke-width="0.5"/>
+      <!-- 右腕 -->
+      <rect x="21" y="19" width="5" height="3" rx="1.5" fill="white" stroke="#ddd" stroke-width="0.5"/>
+      <!-- 教科書（右側） -->
+      <rect x="23" y="16" width="7" height="10" rx="1.5" fill="#3b82f6"/>
+      <rect x="24.5" y="17.5" width="4" height="7" rx="0.5" fill="#93c5fd"/>
+      <line x1="25" y1="16" x2="25" y2="26" stroke="#1d4ed8" stroke-width="0.6"/>
+      <!-- 首 -->
+      <rect x="13" y="15" width="4" height="4" rx="1" fill="#fcd9b4"/>
+      <!-- 頭 -->
+      <circle cx="15" cy="9" r="7" fill="#fcd9b4"/>
+      <!-- 髪（ダーク、センター分け） -->
+      <path d="M8.2,9 Q7.5,2 15,1.5 Q22.5,2 21.8,9 Q19,5 15,5.5 Q11,5 8.2,9Z" fill="#1c1008"/>
+      <!-- メガネ 左レンズ -->
+      <rect x="9.5" y="8" width="4.5" height="3" rx="1" fill="rgba(180,220,255,0.35)" stroke="#555" stroke-width="0.8"/>
+      <!-- メガネ 右レンズ -->
+      <rect x="16" y="8" width="4.5" height="3" rx="1" fill="rgba(180,220,255,0.35)" stroke="#555" stroke-width="0.8"/>
+      <!-- ブリッジ -->
+      <line x1="14" y1="9.5" x2="16" y2="9.5" stroke="#555" stroke-width="0.8"/>
+      <!-- テンプル（左右） -->
+      <line x1="9.5" y1="9.5" x2="8"  y2="9"  stroke="#555" stroke-width="0.8"/>
+      <line x1="20.5" y1="9.5" x2="22" y2="9" stroke="#555" stroke-width="0.8"/>
+      <!-- 目 -->
+      <circle cx="11.8" cy="9.5" r="0.7" fill="#333"/>
+      <circle cx="18.2" cy="9.5" r="0.7" fill="#333"/>
+      <!-- 口 -->
+      <path d="M13.5,12.5 Q15,13.8 16.5,12.5" stroke="#c07060" stroke-width="0.8" fill="none" stroke-linecap="round"/>
+    </symbol>
+
+    <!-- ===== りか: 理系女子 (Red) ===== -->
+    <symbol id="char-rika" viewBox="0 0 30 40">
+      <!-- 靴 -->
+      <ellipse cx="12" cy="39" rx="3" ry="1.5" fill="#222"/>
+      <ellipse cx="18" cy="39" rx="3" ry="1.5" fill="#222"/>
+      <!-- ボトムス（ダーク） -->
+      <rect x="9"  y="28" width="5" height="11" rx="2" fill="#4a1942"/>
+      <rect x="16" y="28" width="5" height="11" rx="2" fill="#4a1942"/>
+      <!-- 白衣（ワイド） -->
+      <rect x="6" y="16" width="18" height="14" rx="3" fill="white" stroke="#e0e0e0" stroke-width="0.8"/>
+      <!-- ラペル -->
+      <path d="M12,16 L15,21 L18,16" fill="none" stroke="#ddd" stroke-width="0.8"/>
+      <!-- ポケット -->
+      <rect x="17" y="21" width="4" height="3" rx="0.5" fill="white" stroke="#ddd" stroke-width="0.5"/>
+      <!-- 左腕 -->
+      <rect x="1.5" y="18" width="6" height="3" rx="1.5" fill="white" stroke="#e0e0e0" stroke-width="0.5"/>
+      <!-- タブレット（左手） -->
+      <rect x="0" y="15" width="5" height="8" rx="1.5" fill="#374151"/>
+      <rect x="0.5" y="15.5" width="4" height="7" rx="1" fill="#60a5fa"/>
+      <!-- 右腕 -->
+      <rect x="22.5" y="18" width="6" height="3" rx="1.5" fill="white" stroke="#e0e0e0" stroke-width="0.5"/>
+      <!-- 首 -->
+      <rect x="13" y="14" width="4" height="4" rx="1" fill="#fcd9b4"/>
+      <!-- 頭 -->
+      <circle cx="15" cy="8" r="7" fill="#fcd9b4"/>
+      <!-- 髪ベース（ブラウン） -->
+      <path d="M8.2,8 Q7.5,1.5 15,1.5 Q22.5,1.5 21.8,8 Q19,4.5 15,5 Q11,4.5 8.2,8Z" fill="#6b3a1a"/>
+      <!-- ポニーテール -->
+      <path d="M20,4 Q25,0 24,6 Q22.5,7.5 20.5,6Z" fill="#6b3a1a"/>
+      <!-- ポニーテール毛束 -->
+      <path d="M20.5,5 Q27,2 25,8" stroke="#6b3a1a" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+      <!-- ヘアゴム -->
+      <ellipse cx="21" cy="5.5" rx="1.5" ry="1" fill="#ef4444"/>
+      <!-- 目 -->
+      <circle cx="12" cy="9" r="0.8" fill="#333"/>
+      <circle cx="18" cy="9" r="0.8" fill="#333"/>
+      <!-- まつ毛（簡易） -->
+      <line x1="11" y1="8.4" x2="10.5" y2="7.6" stroke="#333" stroke-width="0.5"/>
+      <line x1="17" y1="8.4" x2="16.5" y2="7.6" stroke="#333" stroke-width="0.5"/>
+      <!-- 口 -->
+      <path d="M13.5,11.5 Q15,12.8 16.5,11.5" stroke="#c07060" stroke-width="0.8" fill="none" stroke-linecap="round"/>
+    </symbol>
+
+    <!-- ===== だいき: 体育会系男子 (Amber) ===== -->
+    <symbol id="char-daiki" viewBox="0 0 30 40">
+      <!-- スポーツシューズ -->
+      <rect x="8.5"  y="37" width="6" height="3" rx="1.5" fill="#333"/>
+      <rect x="15.5" y="37" width="6" height="3" rx="1.5" fill="#333"/>
+      <!-- ジャージ下（ダーク） -->
+      <rect x="9"  y="27" width="5" height="11" rx="2" fill="#1f2937"/>
+      <rect x="16" y="27" width="5" height="11" rx="2" fill="#1f2937"/>
+      <!-- パンツサイドライン -->
+      <rect x="13.5" y="27" width="1.5" height="10" fill="#fbbf24" rx="0.5"/>
+      <rect x="15"   y="27" width="1.5" height="10" fill="#fbbf24" rx="0.5"/>
+      <!-- ジャージ上（イエロー） -->
+      <rect x="8" y="17" width="14" height="12" rx="3" fill="#fbbf24"/>
+      <!-- 首元（ダーク） -->
+      <rect x="12" y="17" width="6" height="3" rx="1.5" fill="#1f2937"/>
+      <!-- タオル（白、肩にかかる） -->
+      <rect x="4" y="17.5" width="22" height="3.5" rx="2" fill="white" stroke="#e5e7eb" stroke-width="0.5"/>
+      <!-- タオル垂れ下がり左 -->
+      <rect x="4" y="20" width="3" height="9" rx="1.5" fill="white" stroke="#e5e7eb" stroke-width="0.5"/>
+      <!-- タオル垂れ下がり右 -->
+      <rect x="23" y="20" width="3" height="9" rx="1.5" fill="white" stroke="#e5e7eb" stroke-width="0.5"/>
+      <!-- 左腕 -->
+      <rect x="3" y="20" width="6" height="3.5" rx="1.5" fill="#fbbf24"/>
+      <!-- 右腕 -->
+      <rect x="21" y="20" width="6" height="3.5" rx="1.5" fill="#fbbf24"/>
+      <!-- 首 -->
+      <rect x="13" y="14" width="4" height="5" rx="1" fill="#fcd9b4"/>
+      <!-- 頭 -->
+      <circle cx="15" cy="8" r="7" fill="#fcd9b4"/>
+      <!-- 髪（バズカット、ダーク薄め） -->
+      <path d="M8.5,7.5 Q8,1.5 15,1.5 Q22,1.5 21.5,7.5 Q19,4 15,4.5 Q11,4 8.5,7.5Z" fill="#1c1008"/>
+      <!-- 目 -->
+      <circle cx="12.5" cy="9" r="0.9" fill="#333"/>
+      <circle cx="17.5" cy="9" r="0.9" fill="#333"/>
+      <!-- 眉毛（ぐっと引いた） -->
+      <path d="M11,7.2 Q12.5,6.4 14,7.2" stroke="#2a1a08" stroke-width="1.1" fill="none" stroke-linecap="round"/>
+      <path d="M16,7.2 Q17.5,6.4 19,7.2" stroke="#2a1a08" stroke-width="1.1" fill="none" stroke-linecap="round"/>
+      <!-- 口（ビッグスマイル） -->
+      <path d="M12.5,12 Q15,14.2 17.5,12" stroke="#c07060" stroke-width="0.9" fill="none" stroke-linecap="round"/>
+    </symbol>
+
+    <!-- ===== あおい: おしゃれ系女子 (Green) ===== -->
+    <symbol id="char-aoi" viewBox="0 0 30 40">
+      <!-- 靴 -->
+      <ellipse cx="12" cy="39" rx="3" ry="1.5" fill="#333"/>
+      <ellipse cx="18" cy="39" rx="3" ry="1.5" fill="#333"/>
+      <!-- ジーンズ（ブルー） -->
+      <rect x="9"  y="27" width="5" height="12" rx="2" fill="#3b82f6"/>
+      <rect x="16" y="27" width="5" height="12" rx="2" fill="#3b82f6"/>
+      <!-- センターシーム -->
+      <line x1="15" y1="27" x2="15" y2="37" stroke="#2563eb" stroke-width="0.7"/>
+      <!-- カジュアルトップ（ティール） -->
+      <rect x="8" y="17" width="14" height="12" rx="3" fill="#0d9488"/>
+      <!-- ネックライン -->
+      <path d="M12,17 Q15,20 18,17" fill="none" stroke="#0f766e" stroke-width="0.8"/>
+      <!-- ショルダーバッグ ストラップ -->
+      <path d="M9,19 Q6,25 13,29" stroke="#92400e" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+      <!-- バッグ本体 -->
+      <rect x="8"  y="28" width="6" height="5" rx="1.5" fill="#b45309"/>
+      <rect x="8.5" y="28.5" width="5" height="4" rx="1" fill="#d97706"/>
+      <!-- バッグフラップ -->
+      <path d="M8,29.5 Q11,28 14,29.5" fill="#92400e" stroke="none"/>
+      <!-- 左腕 -->
+      <rect x="3" y="19" width="6" height="3" rx="1.5" fill="#0d9488"/>
+      <!-- 右腕 -->
+      <rect x="21" y="19" width="5" height="3" rx="1.5" fill="#0d9488"/>
+      <!-- スマホ（右手） -->
+      <rect x="23" y="16" width="5" height="8" rx="1.5" fill="#111"/>
+      <rect x="23.5" y="16.5" width="4" height="7" rx="1" fill="#6ee7b7"/>
+      <!-- 首 -->
+      <rect x="13" y="15" width="4" height="4" rx="1" fill="#fcd9b4"/>
+      <!-- 頭 -->
+      <circle cx="15" cy="8" r="7" fill="#fcd9b4"/>
+      <!-- 髪トップ（ブラウン） -->
+      <path d="M8.5,8 Q7.5,1.5 15,1.5 Q22.5,1.5 21.5,8 Q19,4.5 15,5 Q11,4.5 8.5,8Z" fill="#7c4a1a"/>
+      <!-- 髪 左サイド（肩まで） -->
+      <path d="M8.5,8 Q7,10 7.5,17 Q9.5,16 9.2,12 Q9,10 8.5,8Z" fill="#7c4a1a"/>
+      <!-- 髪 右サイド -->
+      <path d="M21.5,8 Q23,10 22.5,17 Q20.5,16 20.8,12 Q21,10 21.5,8Z" fill="#7c4a1a"/>
+      <!-- 髪ハイライト -->
+      <path d="M12.5,3 Q15,2 17.5,3" stroke="#a06020" stroke-width="0.8" fill="none"/>
+      <!-- 目 -->
+      <circle cx="12" cy="9" r="0.8" fill="#333"/>
+      <circle cx="18" cy="9" r="0.8" fill="#333"/>
+      <!-- まつ毛（ふわふわ） -->
+      <line x1="11"  y1="8.3" x2="10.4" y2="7.6" stroke="#333" stroke-width="0.5"/>
+      <line x1="12"  y1="8.1" x2="11.8" y2="7.3" stroke="#333" stroke-width="0.5"/>
+      <line x1="17"  y1="8.3" x2="16.4" y2="7.6" stroke="#333" stroke-width="0.5"/>
+      <line x1="18"  y1="8.1" x2="17.8" y2="7.3" stroke="#333" stroke-width="0.5"/>
+      <!-- ほっぺチーク -->
+      <ellipse cx="11.5" cy="10.5" rx="2"  ry="1" fill="rgba(255,140,140,0.35)"/>
+      <ellipse cx="18.5" cy="10.5" rx="2"  ry="1" fill="rgba(255,140,140,0.35)"/>
+      <!-- 口 -->
+      <path d="M13.5,12 Q15,13.5 16.5,12" stroke="#c07060" stroke-width="0.8" fill="none" stroke-linecap="round"/>
+    </symbol>
+
+  </defs>
+</svg>
+
+<div id="root">
+  <div id="loading-fallback" style="color:#fbbf24;font-family:monospace;padding:20px;text-align:center;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+    <div style="font-size:24px;margin-bottom:10px;">🎲 起業人生ゲーム</div>
+    <div style="font-size:14px;color:#9ca3af;">読み込み中...</div>
+    <div id="error-display" style="margin-top:20px;color:#ef4444;font-size:12px;max-width:90%;word-break:break-word;white-space:pre-wrap;text-align:left;"></div>
+  </div>
+</div>
+<script>
+// Global error handler for diagnostics on mobile
+window.addEventListener('error', function(e) {
+  var el = document.getElementById('error-display');
+  if (el) {
+    el.textContent = '❌ エラー: ' + (e.message || 'unknown') + '\n' + (e.filename || '') + ':' + (e.lineno || '');
+  }
+});
+window.addEventListener('unhandledrejection', function(e) {
+  var el = document.getElementById('error-display');
+  if (el) {
+    el.textContent = '❌ Promise Error: ' + (e.reason && (e.reason.message || e.reason.toString()));
+  }
+});
+</script>
+
+<script type="text/babel">
+const { useState, useEffect, useCallback, useRef, useMemo } = React;
+
+/* ============================================================
+   CHARACTER DATA
+   ============================================================ */
+const CHARACTERS = [
+  {
+    id: 'kento', name: 'けんと', role: '文系男子',
+    color: '#3b82f6', bg: 'bg-blue-500', border: 'border-blue-400',
+    stats: { idea: 5, action: 3, analysis: 2, network: 3 },
+    skills: [
+      { name: 'ピボット',         desc: 'マスのイベントを1回無効にできる' },
+      { name: 'アイデアフラッシュ', desc: 'サイコロをもう1回振れる（3ターンに1回）' },
+    ],
+    weakness: '「市場調査」マスで-1マス戻る',
+  },
+  {
+    id: 'rika', name: 'りか', role: '理系女子',
+    color: '#ef4444', bg: 'bg-red-500', border: 'border-red-400',
+    stats: { idea: 2, action: 2, analysis: 5, network: 3 },
+    skills: [
+      { name: '仮説検証',     desc: 'イベント結果を予測して当たれば効果2倍' },
+      { name: 'データドリブン', desc: '「ピッチ」マスで+2マス進む' },
+    ],
+    weakness: '「ノリと勢い」マスで効果が半減',
+  },
+  {
+    id: 'daiki', name: 'だいき', role: '体育会系男子',
+    color: '#f59e0b', bg: 'bg-amber-500', border: 'border-amber-400',
+    stats: { idea: 2, action: 5, analysis: 1, network: 4 },
+    skills: [
+      { name: 'フットワーク',     desc: '毎ターン最低2マス進める' },
+      { name: '人脈コネクション', desc: 'OB訪問・交流会マスで効果2倍' },
+    ],
+    weakness: '「資料作成」マスで1ターン休み',
+  },
+  {
+    id: 'aoi', name: 'あおい', role: 'おしゃれ系女子',
+    color: '#22c55e', bg: 'bg-green-500', border: 'border-green-400',
+    stats: { idea: 3, action: 3, analysis: 3, network: 5 },
+    skills: [
+      { name: 'SNS拡散',    desc: '「プレゼン」マスで他プレイヤーを1マス戻せる' },
+      { name: 'バランス型', desc: '全イベント効果が±1に緩和される' },
+    ],
+    weakness: '特になし',
+  },
+];
+
+/* ============================================================
+   BOARD DATA - ALL 40 SQUARES
+   ============================================================ */
+const BOARD = [
+  // === Q1: 春 (1-10) ===
+  {
+    id: 1, quarter: 1, type: 'start', colorClass: 'bg-green-200 border-green-500',
+    title: '入学式',
+    description: 'ニコニコ生放送で参加してやる気が上がる。',
+    effects: [{ stat: 'sp', value: 15 }]
+  },
+  {
+    id: 2, quarter: 1, type: 'zen', colorClass: 'bg-blue-200 border-blue-500',
+    title: '履修登録',
+    description: '自力で選ぶか、履修登録会に参加するか。',
+    effects: [],
+    dice: {
+      type: 'evenOdd',
+      even: [{ stat: 'sp', value: 10 }],
+      odd: [{ stat: 'gpa', value: -0.1 }],
+      evenLabel: '登録会で情報収集！履修ばっちり',
+      oddLabel: '自力で選んで必修を取り忘れた…'
+    }
+  },
+  {
+    id: 3, quarter: 1, type: 'zen', colorClass: 'bg-blue-200 border-blue-500',
+    title: 'サークルに参加',
+    description: 'サークル宣伝チャンネルからサークルを探して入会。',
+    effects: [{ stat: 'sp', value: 10 }]
+  },
+  {
+    id: 4, quarter: 1, type: 'zen', colorClass: 'bg-blue-200 border-blue-500',
+    title: 'オンデマンド授業の罠',
+    description: '「授業はオンデマンドだから後で見ればいいや」と見ただけで満足する。',
+    effects: [{ stat: 'gpa', value: -0.1 }]
+  },
+  {
+    id: 5, quarter: 1, type: 'trouble', colorClass: 'bg-red-200 border-red-500',
+    title: 'ライブ授業の罠',
+    description: 'ライブ授業は期限が先だからと後回しにして期限ギリギリまで残してしまう。',
+    effects: [{ stat: 'gpa', value: -0.2 }]
+  },
+  {
+    id: 6, quarter: 1, type: 'event', colorClass: 'bg-yellow-200 border-yellow-500',
+    title: '起業サークルの交流会',
+    description: 'いろんなバックグラウンドを持つ方と交流できてモチベーションが上がる。',
+    effects: [{ stat: 'money', value: -1 }, { stat: 'sp', value: 15 }]
+  },
+  {
+    id: 7, quarter: 1, type: 'zen', colorClass: 'bg-blue-200 border-blue-500',
+    title: 'レポート期限迫る',
+    description: '急いで残りのレポートを提出する。ギリギリセーフ。',
+    effects: [{ stat: 'gpa', value: 0.1 }]
+  },
+  {
+    id: 8, quarter: 1, type: 'startup', colorClass: 'bg-red-200 border-red-500',
+    title: '起業体験談',
+    description: '起業サークルのメンバー内にいる起業家の話を聞いて起業欲が高まる。',
+    effects: [{ stat: 'sp', value: 20 }]
+  },
+  {
+    id: 9, quarter: 1, type: 'zen', colorClass: 'bg-blue-200 border-blue-500',
+    title: '単位認定試験',
+    description: '初めての大学のテストもAIをフル活用して勉強したおかげで単位取得。',
+    effects: [{ stat: 'gpa', value: 0.3 }]
+  },
+  {
+    id: 10, quarter: 1, type: 'settlement', colorClass: 'bg-amber-200 border-amber-500',
+    title: '定期活動に参加【第1Q決算】',
+    description: '起業サークルの毎月開催の勉強会に参加して起業の仕方を学ぶ。',
+    effects: [{ stat: 'sp', value: 10 }]
+  },
+
+  // === Q2: 夏 (11-20) ===
+  {
+    id: 11, quarter: 2, type: 'event', colorClass: 'bg-green-200 border-green-500',
+    title: '地域連携プログラム',
+    description: '地域の人たちと交流するプログラムに参加。多様な生き方・価値観に触れ、自分の起業観がアップデートされた。',
+    effects: [{ stat: 'sp', value: 20 }, { stat: 'gpa', value: 0.1 }]
+  },
+  {
+    id: 12, quarter: 2, type: 'event', colorClass: 'bg-yellow-200 border-yellow-500',
+    title: 'オフ会',
+    description: 'オンラインで繋がっていた仲間と初めてリアルで集合！一緒にご飯を食べて語り合い、チームの絆が深まった。',
+    effects: [{ stat: 'sp', value: 25 }, { stat: 'money', value: -5 }]
+  },
+  {
+    id: 13, quarter: 2, type: 'startup', colorClass: 'bg-red-200 border-red-500',
+    title: '口座残高9円', isInterview: true,
+    description: 'カップ麺すら買えない。',
+    effects: [{ action: 'setMoney', value: 0 }, { stat: 'sp', value: 50 }]
+  },
+  {
+    id: 14, quarter: 2, type: 'startup', colorClass: 'bg-red-200 border-red-500',
+    title: 'チーム結成',
+    description: '起業サークルの共創プログラムでついにチームが結成！それぞれの強みを活かせるメンバーが揃い、士気が一気に上がった。',
+    effects: [{ stat: 'sp', value: 30 }]
+  },
+  {
+    id: 15, quarter: 2, type: 'startup', colorClass: 'bg-red-200 border-red-500',
+    title: '主要メンバー離脱', isInterview: true,
+    description: '「方向性の違い」で辞められる。毎日25時まで一人作業。',
+    effects: [{ stat: 'gpa', value: -0.5 }, { stat: 'sp', value: 30 }]
+  },
+  {
+    id: 16, quarter: 2, type: 'character', colorClass: 'bg-violet-200 border-violet-500',
+    title: '🌟 キャラ別：Q2クライマックス',
+    description: 'あなたの強みが問われる！キャラクターによって結果が変わる。',
+    effects: [], skipTurn: false,
+    characterEvents: {
+      kento: {
+        title: 'アイデアソン圧巻の優勝',
+        description: '発想力全開でビジネスコンテストに挑んだ結果、アイデアの独創性が評価されて1位！賞金とSPをゲット。',
+        effects: [{ stat: 'sp', value: 30 }, { stat: 'money', value: 10 }],
+        skipTurn: false,
+      },
+      rika: {
+        title: '教授から研究補助金を獲得',
+        description: 'データ分析のレポートが教授の目に留まり、研究補助金を獲得。GPA評価もアップした。',
+        effects: [{ stat: 'money', value: 15 }, { stat: 'gpa', value: 0.3 }],
+        skipTurn: false,
+      },
+      daiki: {
+        title: '体育会OBから大企業を紹介される',
+        description: '先輩ネットワークをフル活用！体育会OBの縁で大手企業の担当者と繋がり、協業の話が進んだ。',
+        effects: [{ stat: 'money', value: 10 }, { stat: 'sp', value: 25 }],
+        skipTurn: false,
+      },
+      aoi: {
+        title: 'おしゃれコワーキングの特集に掲載',
+        description: 'SNS経由でトレンドメディアから取材。おしゃれなコワーキング特集に掲載されてフォロワー急増！',
+        effects: [{ stat: 'sp', value: 20 }, { stat: 'money', value: 5 }],
+        skipTurn: false,
+      },
+    },
+  },
+  {
+    id: 17, quarter: 2, type: 'choice', colorClass: 'bg-yellow-200 border-yellow-500',
+    title: '海 or コード',
+    description: '友人と海に行くか、クーラーの効いた部屋でコードを書くか。',
+    effects: [],
+    choices: [
+      { label: '🏖️ 海に行く', effects: [{ stat: 'money', value: -2 }, { stat: 'gpa', value: 0.2 }] },
+      { label: '💻 コードを書く', effects: [{ stat: 'sp', value: 20 }, { stat: 'gpa', value: -0.1 }] }
+    ]
+  },
+  {
+    id: 18, quarter: 2, type: 'zen', colorClass: 'bg-blue-200 border-blue-500',
+    title: 'サーバーメンテナンス',
+    description: 'ZEN Studyのサーバーメンテナンスで授業が見られない。',
+    effects: [], skipTurn: true
+  },
+  {
+    id: 19, quarter: 2, type: 'startup', colorClass: 'bg-red-200 border-red-500',
+    title: 'インターン生採用', description: '自分より優秀で焦る。',
+    effects: [{ stat: 'money', value: -5 }, { stat: 'sp', value: 20 }]
+  },
+  {
+    id: 20, quarter: 2, type: 'settlement', colorClass: 'bg-amber-200 border-amber-500',
+    title: '夏休み明けの虚無感【第2Q決算】', description: '夏が終わった…。',
+    effects: [{ stat: 'gpa', value: 0.1 }]
+  },
+
+  // === Q3: 秋 (21-30) ===
+  {
+    id: 21, quarter: 3, type: 'event', colorClass: 'bg-yellow-200 border-yellow-500',
+    title: 'お小遣いをもらう', description: 'ありがたい臨時収入。',
+    effects: [],
+    dice: { type: 'multiply', multiplier: 1, target: 'money', label: '万円ゲット！' }
+  },
+  {
+    id: 22, quarter: 3, type: 'zen', colorClass: 'bg-blue-200 border-blue-500',
+    title: '学祭準備で中間レポート忘却',
+    description: '学祭準備で盛り上がりすぎて中間レポートの存在を忘れる。',
+    effects: [{ stat: 'gpa', value: -0.4 }]
+  },
+  {
+    id: 23, quarter: 3, type: 'startup', colorClass: 'bg-red-200 border-red-500',
+    title: '法人向け大型案件受注！', isInterview: true,
+    description: '口座の桁が「3つ」増える！',
+    effects: [],
+    dice: { type: 'multiply', multiplier: 100, target: 'money', label: '00万円の大型案件！' }
+  },
+  {
+    id: 24, quarter: 3, type: 'character', colorClass: 'bg-violet-200 border-violet-500',
+    title: '🌟 キャラ別：Q3の壁',
+    description: '苦手分野が牙をむく！キャラクターによってダメージが違う。',
+    effects: [], skipTurn: false,
+    characterEvents: {
+      kento: {
+        title: 'ノリとトークが必要な飛び込み営業',
+        description: 'ロジック重視のけんとに、感情的な訴求が必要な営業を任された。分析しすぎて全然刺さらなかった…。',
+        effects: [{ stat: 'sp', value: -15 }],
+        skipTurn: false,
+      },
+      rika: {
+        title: '感情クレーム対応で疲弊',
+        description: 'データでは解決できない感情的なクレームが殺到。論理で返すほど炎上し、メンタルを消耗した。',
+        effects: [{ stat: 'sp', value: -10 }, { stat: 'gpa', value: -0.2 }],
+        skipTurn: false,
+      },
+      daiki: {
+        title: '急な資料作成依頼が降ってきた',
+        description: '「明日までにプレゼン資料」——フットワークは最強でも書類仕事は天敵。チームを巻き込んで1ターン休み。',
+        effects: [{ stat: 'sp', value: -10 }],
+        skipTurn: true,
+      },
+      aoi: {
+        title: 'SNS炎上騒動、でも誠実対応で最小限のダメージ',
+        description: '投稿が一部で批判されたが、バランス型のあおいが即座に誠実な謝罪対応。ダメージを最小限に抑えた。',
+        effects: [{ stat: 'sp', value: -5 }],
+        skipTurn: false,
+      },
+    },
+  },
+  {
+    id: 25, quarter: 3, type: 'zen', colorClass: 'bg-blue-200 border-blue-500',
+    title: '教授との面談',
+    description: 'オフィスアワーで起業の相談に乗ってもらう。',
+    effects: [{ stat: 'sp', value: 30 }, { stat: 'gpa', value: 0.2 }]
+  },
+  {
+    id: 26, quarter: 3, type: 'choice', colorClass: 'bg-yellow-200 border-yellow-500',
+    title: 'メディア取材 vs 必修テスト',
+    description: 'メディアからの取材依頼！しかし当日は必修のテスト日。',
+    effects: [],
+    choices: [
+      { label: '📺 取材優先', effects: [{ stat: 'sp', value: 50 }, { stat: 'gpa', value: -1.0 }] },
+      { label: '📝 テスト優先', effects: [{ stat: 'gpa', value: 0.5 }] }
+    ]
+  },
+  {
+    id: 27, quarter: 3, type: 'startup', colorClass: 'bg-red-200 border-red-500',
+    title: 'オフィスを借りるか？',
+    description: '自分のオフィスを構えるか悩む。',
+    effects: [],
+    choices: [
+      { label: '🏢 借りる', effects: [{ stat: 'money', value: -30 }, { stat: 'sp', value: 30 }] },
+      { label: '🏠 借りない', effects: [] }
+    ]
+  },
+  {
+    id: 28, quarter: 3, type: 'trouble', colorClass: 'bg-red-200 border-red-500',
+    title: '演習寝坊で遅刻',
+    description: '演習の開始時刻に寝坊してしまい遅刻。TAに目をつけられ授業評価もガタ落ち。今日は動けない…',
+    effects: [{ stat: 'gpa', value: -0.3 }, { stat: 'sp', value: -15 }],
+    skipTurn: true,
+  },
+  {
+    id: 29, quarter: 3, type: 'startup', colorClass: 'bg-red-200 border-red-500',
+    title: 'ピボット（事業転換）',
+    description: '今までのコードを全部捨てる決断。',
+    effects: [{ action: 'halveSP' }, { stat: 'money', value: 20 }]
+  },
+  {
+    id: 30, quarter: 3, type: 'settlement', colorClass: 'bg-amber-200 border-amber-500',
+    title: '年末の焦り【第3Q決算】', description: '忙しくて勉強不足。',
+    effects: [{ stat: 'gpa', value: -0.1 }]
+  },
+
+  // === Q4: 冬 (31-40) ===
+  {
+    id: 31, quarter: 4, type: 'character', colorClass: 'bg-violet-200 border-violet-500',
+    title: '🌟 キャラ別：ゴール前の最後の分岐',
+    description: 'ゴールまであと少し！ここでキャラクターの個性が明暗を分ける。',
+    effects: [], skipTurn: false,
+    characterEvents: {
+      kento: {
+        title: '最終ピッチで「数字が弱い」と指摘される',
+        description: 'アイデアは光るが、市場規模・財務計画の数字が甘いと投資家に指摘された。強みと弱点が同時に出た瞬間。',
+        effects: [{ stat: 'sp', value: -15 }, { stat: 'money', value: -5 }],
+        skipTurn: false,
+      },
+      rika: {
+        title: 'ピッチで完璧なデータ分析が投資家を動かした',
+        description: '市場データ・財務モデル・競合分析を完璧に揃えたピッチが刺さった。投資家から「こんなに整理されたデータは初めて」と絶賛。',
+        effects: [{ stat: 'sp', value: 25 }, { stat: 'money', value: 20 }],
+        skipTurn: false,
+      },
+      daiki: {
+        title: '卒論と起業の二足のわらじ、資料が間に合わない',
+        description: '体力と行動力は誰にも負けないが、卒論提出と事業計画書が重なってしまった。書類仕事の苦手が最後に…1ターン休み。',
+        effects: [{ stat: 'sp', value: -10 }],
+        skipTurn: true,
+      },
+      aoi: {
+        title: 'ラストのSNSキャンペーンが大成功',
+        description: 'ゴール前にSNSで最終キャンペーンを仕掛けたら大バズり。フォロワーが一気に倍増し、マネタイズも加速した。',
+        effects: [{ stat: 'sp', value: 20 }, { stat: 'money', value: 12 }],
+        skipTurn: false,
+      },
+    },
+  },
+  {
+    id: 32, quarter: 4, type: 'zen', colorClass: 'bg-blue-200 border-blue-500',
+    title: '72時間耐久動画視聴フェス', isInterview: true,
+    description: '授業動画の溜め込みが爆発。期末前日に一気見。',
+    effects: [],
+    dice: {
+      type: 'range',
+      ranges: [
+        { min: 1, max: 3, effects: [{ stat: 'gpa', value: -1.5 }], label: '寝落ちした…GPA大暴落' },
+        { min: 4, max: 6, effects: [], label: 'なんとか乗り切った！' }
+      ]
+    }
+  },
+  {
+    id: 33, quarter: 4, type: 'startup', colorClass: 'bg-red-200 border-red-500',
+    title: '確定申告', description: '領収書の山と格闘。',
+    effects: [{ stat: 'money', value: -10 }, { stat: 'sp', value: 10 }]
+  },
+  {
+    id: 34, quarter: 4, type: 'choice', colorClass: 'bg-yellow-200 border-yellow-500',
+    title: 'VCからの誘い',
+    description: '「中退してシリコンバレーに来ないか」と誘われる。',
+    effects: [],
+    choices: [
+      { label: '✈️ 行く（即ゴール）', effects: [{ action: 'setGPA', value: 0 }, { action: 'jumpToGoal' }] },
+      { label: '🎓 断る', effects: [{ stat: 'sp', value: 50 }] }
+    ]
+  },
+  {
+    id: 35, quarter: 4, type: 'event', colorClass: 'bg-yellow-200 border-yellow-500',
+    title: 'ビジコン出場',
+    description: '資金調達のためビジネスコンテストに出場！サイコロで 6 が出れば優勝。大逆転のチャンス！',
+    effects: [],
+    dice: {
+      type: 'range',
+      ranges: [
+        {
+          min: 1, max: 5,
+          label: '惜しくも入賞できず… 参加賞もらえた',
+          effects: [{ stat: 'sp', value: 15 }, { stat: 'money', value: 5 }],
+        },
+        {
+          min: 6, max: 6,
+          label: '🏆 優勝！！賞金と注目を独占！',
+          effects: [{ stat: 'money', value: 60 }, { stat: 'sp', value: 50 }],
+        },
+      ],
+    },
+  },
+  {
+    id: 36, quarter: 4, type: 'startup', colorClass: 'bg-red-200 border-red-500',
+    title: '最後の事業ピッチ',
+    description: '全SPを資金に変換！（1SP = 1万円）',
+    effects: [{ action: 'spToMoney' }]
+  },
+  {
+    id: 37, quarter: 4, type: 'trouble', colorClass: 'bg-yellow-200 border-yellow-500',
+    title: '共同創業者メンタルブレイク',
+    description: '共同創業者が彼女と別れてメンタル崩壊。慰めの飲み代。',
+    effects: [{ stat: 'money', value: -5 }]
+  },
+  {
+    id: 38, quarter: 4, type: 'zen', colorClass: 'bg-blue-200 border-blue-500',
+    title: '楽単探し', description: '来期の履修登録。楽単を探し回る。',
+    effects: [{ stat: 'gpa', value: 0.2 }]
+  },
+  {
+    id: 39, quarter: 4, type: 'event', colorClass: 'bg-yellow-200 border-yellow-500',
+    title: '最終プレゼン vs 再試験',
+    description: '明日は最終プレゼンと再試験が被った！',
+    effects: [],
+    dice: {
+      type: 'evenOdd',
+      even: [{ stat: 'money', value: 50 }, { stat: 'gpa', value: 0.5 }],
+      odd: [{ stat: 'money', value: -20 }, { stat: 'gpa', value: -0.5 }],
+      evenLabel: '大成功！プレゼンも試験もクリア！',
+      oddLabel: 'どっちも中途半端に…'
+    }
+  },
+  {
+    id: 40, quarter: 4, type: 'goal', colorClass: 'bg-amber-300 border-amber-600',
+    title: '決算発表【ゴール】',
+    description: 'お疲れ様でした！最終判定へ。',
+    effects: []
+  },
+];
+
+const QUARTER_INFO = [
+  { label: '第1Q', season: '春', emoji: '🌸', color: 'text-pink-400', bg: 'bg-pink-900/50' },
+  { label: '第2Q', season: '夏', emoji: '🌻', color: 'text-yellow-400', bg: 'bg-yellow-900/50' },
+  { label: '第3Q', season: '秋', emoji: '🍁', color: 'text-orange-400', bg: 'bg-orange-900/50' },
+  { label: '第4Q', season: '冬', emoji: '❄️', color: 'text-blue-300', bg: 'bg-blue-900/50' },
+];
+
+const TYPE_ICONS = {
+  start: '🏫', zen: '📖', startup: '💡', event: '🎉', trouble: '🚨',
+  lucky: '🍀', choice: '🤔', settlement: '📝', goal: '🎓',
+  character: '🌟',
+};
+
+const DICE_FACES = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
+
+/* ============================================================
+   SVG CAMPUS MAP - 手打ち座標 (viewBox: 540 x 2450)
+   蛇行ルート: 正門→食堂→図書館→講義棟→サークル棟→卒業式
+   ============================================================ */
+// 860x780マップ上の5段蛇行座標
+const SQUARE_COORDS = [
+  // ===== Row 1 (bottom, y≈680): Q1 春 — 左→右 =====
+  { id: 1,  x: 68,  y: 678 },
+  { id: 2,  x: 163, y: 670 },
+  { id: 3,  x: 258, y: 682 },
+  { id: 4,  x: 353, y: 672 },
+  { id: 5,  x: 448, y: 684 },
+  { id: 6,  x: 543, y: 674 },
+  { id: 7,  x: 638, y: 680 },
+  { id: 8,  x: 733, y: 672 },
+  // ===== Row 2 (y≈540): Q1-Q2 — 右→左 =====
+  { id: 9,  x: 745, y: 545 },
+  { id: 10, x: 650, y: 538 },
+  { id: 11, x: 555, y: 548 },
+  { id: 12, x: 460, y: 535 },
+  { id: 13, x: 365, y: 545 },
+  { id: 14, x: 270, y: 538 },
+  { id: 15, x: 175, y: 548 },
+  { id: 16, x: 80,  y: 540 },
+  // ===== Row 3 (y≈400): Q2-Q3 — 左→右 =====
+  { id: 17, x: 68,  y: 405 },
+  { id: 18, x: 163, y: 398 },
+  { id: 19, x: 258, y: 410 },
+  { id: 20, x: 353, y: 400 },
+  { id: 21, x: 448, y: 408 },
+  { id: 22, x: 543, y: 395 },
+  { id: 23, x: 638, y: 405 },
+  { id: 24, x: 733, y: 398 },
+  // ===== Row 4 (y≈265): Q3-Q4 — 右→左 =====
+  { id: 25, x: 745, y: 268 },
+  { id: 26, x: 650, y: 260 },
+  { id: 27, x: 555, y: 270 },
+  { id: 28, x: 460, y: 262 },
+  { id: 29, x: 365, y: 272 },
+  { id: 30, x: 270, y: 264 },
+  { id: 31, x: 175, y: 270 },
+  { id: 32, x: 80,  y: 262 },
+  // ===== Row 5 (top, y≈130): Q4 冬 — 左→右 =====
+  { id: 33, x: 68,  y: 132 },
+  { id: 34, x: 163, y: 125 },
+  { id: 35, x: 258, y: 135 },
+  { id: 36, x: 353, y: 128 },
+  { id: 37, x: 448, y: 132 },
+  { id: 38, x: 543, y: 125 },
+  { id: 39, x: 638, y: 135 },
+  { id: 40, x: 733, y: 128 },
+];
+
+// マスの種類 → CSSクラス名マッピング
+const SQ_CLASS_MAP = {
+  start: 'sq-start', goal: 'sq-goal',
+  lucky: 'sq-good', zen: 'sq-good',
+  trouble: 'sq-bad',
+  event: 'sq-special', choice: 'sq-special', settlement: 'sq-special',
+  startup: 'sq-special',
+  character: 'sq-character',
+};
+
+// ルートパスのSVG d属性を生成
+function buildRoutePath() {
+  const pts = SQUARE_COORDS;
+  let d = `M ${pts[0].x} ${pts[0].y}`;
+  for (let i = 1; i < pts.length; i++) {
+    const p = pts[i - 1], c = pts[i];
+    const mx = (p.x + c.x) / 2, my = (p.y + c.y) / 2;
+    // 段の折り返し部分はカーブを大きく
+    if (i === 8 || i === 16 || i === 24 || i === 32) {
+      const cy1 = p.y + (c.y - p.y) * 0.1;
+      const cy2 = c.y - (c.y - p.y) * 0.1;
+      d += ` C ${p.x} ${cy1}, ${c.x} ${cy2}, ${c.x} ${c.y}`;
+    } else {
+      d += ` Q ${mx} ${my + (i % 2 === 0 ? -8 : 8)}, ${c.x} ${c.y}`;
+    }
+  }
+  return d;
+}
+
+/* ============================================================
+   HELPER FUNCTIONS
+   ============================================================ */
+function clampGPA(val) {
+  return Math.round(Math.max(0, Math.min(4, val)) * 10) / 10;
+}
+
+function applyEffects(player, effects) {
+  let p = { ...player };
+  for (const e of effects) {
+    if (e.action === 'setMoney') {
+      p.money = e.value;
+    } else if (e.action === 'setGPA') {
+      p.gpa = e.value;
+    } else if (e.action === 'halveSP') {
+      p.sp = Math.floor(p.sp / 2);
+    } else if (e.action === 'spToMoney') {
+      p.money += p.sp;
+      p.sp = 0;
+    } else if (e.action === 'jumpToGoal') {
+      p.position = 40;
+      p.finished = true;
+    } else if (e.action === 'skipTurn') {
+      p.skipNextTurn = true;
+    } else if (e.stat) {
+      if (e.stat === 'money') p.money += e.value;
+      else if (e.stat === 'gpa') p.gpa += e.value;
+      else if (e.stat === 'sp') p.sp += e.value;
+    }
+  }
+  p.money = Math.max(0, p.money);
+  p.gpa = clampGPA(p.gpa);
+  p.sp = Math.max(0, p.sp);
+  return p;
+}
+
+function calculateScore(player) {
+  const raw = player.money + player.sp;
+  return player.gpa < 2.0 ? Math.floor(raw / 2) : raw;
+}
+
+function getTitle(rank, gpa) {
+  if (gpa < 2.0) return { emoji: '😱', title: '留年ギリギリ級' };
+  if (rank === 1) return { emoji: '🦄', title: 'ユニコーン級' };
+  if (rank === 2) return { emoji: '🏢', title: 'スタートアップ級' };
+  if (rank === 3) return { emoji: '💼', title: '個人事業主級' };
+  return { emoji: '😱', title: '留年ギリギリ級' };
+}
+
+function effectDisplay(effect, player) {
+  if (effect.action === 'setMoney') return { icon: '💸', text: '所持金が0円に！', negative: true };
+  if (effect.action === 'setGPA') return { icon: '📊', text: `GPAが ${effect.value} に！`, negative: true };
+  if (effect.action === 'halveSP') return { icon: '📉', text: `SP半減！(${player ? player.sp : '?'} → ${player ? Math.floor(player.sp / 2) : '?'})`, negative: true };
+  if (effect.action === 'spToMoney') return { icon: '💱', text: `全SP(${player ? player.sp : '?'}pt)を資金に変換！`, positive: true };
+  if (effect.action === 'jumpToGoal') return { icon: '🏁', text: '即ゴールへ移動！', neutral: true };
+  if (effect.action === 'skipTurn') return { icon: '⏸️', text: '1回休み', neutral: true };
+  if (effect.stat === 'money') {
+    const v = effect.value;
+    return { icon: v >= 0 ? '💰' : '💸', text: `資金 ${v > 0 ? '+' : ''}${v}万円`, positive: v > 0, negative: v < 0 };
+  }
+  if (effect.stat === 'gpa') {
+    const v = effect.value;
+    return { icon: '📊', text: `GPA ${v > 0 ? '+' : ''}${v}`, positive: v > 0, negative: v < 0 };
+  }
+  if (effect.stat === 'sp') {
+    const v = effect.value;
+    return { icon: v >= 0 ? '⚡' : '📉', text: `SP ${v > 0 ? '+' : ''}${v}`, positive: v > 0, negative: v < 0 };
+  }
+  return { icon: '❓', text: '???', neutral: true };
+}
+
+function getGridOrder() {
+  const grid = [];
+  for (let row = 0; row < 8; row++) {
+    const rowItems = [];
+    for (let col = 0; col < 5; col++) {
+      const idx = row % 2 === 0 ? row * 5 + col : row * 5 + (4 - col);
+      rowItems.push(BOARD[idx]);
+    }
+    grid.push(rowItems);
+  }
+  return grid;
+}
+
+/* ============================================================
+   SOUND MANAGER (Web Audio API - 8-bit style)
+   ============================================================ */
+const SoundManager = {
+  ctx: null,
+  muted: false,
+  bgmPlaying: false,
+  bgmTimeout: null,
+  masterGain: null,
+
+  init() {
+    if (this.ctx) return;
+    try {
+      this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+      this.masterGain = this.ctx.createGain();
+      this.masterGain.gain.value = 0.5;
+      this.masterGain.connect(this.ctx.destination);
+    } catch (e) { /* Audio not supported */ }
+  },
+
+  resume() {
+    if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+  },
+
+  playTone(freq, duration, type, volume, delay) {
+    if (this.muted || !this.ctx || !this.masterGain || freq <= 0) return;
+    const t = this.ctx.currentTime + (delay || 0);
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = type || 'square';
+    osc.frequency.setValueAtTime(freq, t);
+    gain.gain.setValueAtTime(volume || 0.08, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + duration);
+    osc.connect(gain);
+    gain.connect(this.masterGain);
+    osc.start(t);
+    osc.stop(t + duration + 0.01);
+  },
+
+  // --- Sound Effects ---
+
+  diceRoll() {
+    this.init(); this.resume();
+    for (let i = 0; i < 10; i++) {
+      this.playTone(300 + Math.random() * 500, 0.05, 'square', 0.05, i * 0.07);
+    }
+    this.playTone(880, 0.15, 'square', 0.07, 0.8);
+  },
+
+  positive() {
+    this.init(); this.resume();
+    this.playTone(523, 0.1, 'square', 0.07, 0);
+    this.playTone(659, 0.1, 'square', 0.07, 0.08);
+    this.playTone(784, 0.22, 'square', 0.09, 0.16);
+  },
+
+  negative() {
+    this.init(); this.resume();
+    this.playTone(392, 0.12, 'sawtooth', 0.06, 0);
+    this.playTone(311, 0.12, 'sawtooth', 0.06, 0.1);
+    this.playTone(233, 0.25, 'sawtooth', 0.06, 0.2);
+  },
+
+  choiceAppear() {
+    this.init(); this.resume();
+    this.playTone(440, 0.08, 'square', 0.05, 0);
+    this.playTone(554, 0.08, 'square', 0.05, 0.1);
+    this.playTone(659, 0.12, 'square', 0.06, 0.2);
+  },
+
+  judgmentRoll() {
+    this.init(); this.resume();
+    for (let i = 0; i < 6; i++) {
+      this.playTone(330 + i * 60, 0.06, 'triangle', 0.05, i * 0.06);
+    }
+  },
+
+  skipTurn() {
+    this.init(); this.resume();
+    this.playTone(330, 0.2, 'triangle', 0.06, 0);
+    this.playTone(247, 0.3, 'triangle', 0.06, 0.15);
+  },
+
+  goalReach() {
+    this.init(); this.resume();
+    this.playTone(523, 0.12, 'square', 0.07, 0);
+    this.playTone(659, 0.12, 'square', 0.07, 0.1);
+    this.playTone(784, 0.12, 'square', 0.07, 0.2);
+    this.playTone(1047, 0.4, 'square', 0.09, 0.3);
+  },
+
+  fanfare() {
+    this.init(); this.resume();
+    const notes = [523, 523, 523, 659, 784, 0, 659, 784, 1047];
+    const durs  = [0.12,0.12,0.12,0.12,0.25,0.08,0.12,0.12,0.5];
+    let t = 0;
+    notes.forEach((n, i) => {
+      if (n > 0) this.playTone(n, durs[i], 'square', 0.09, t);
+      t += durs[i] * 0.85;
+    });
+    // Bass hits
+    this.playTone(131, 0.3, 'triangle', 0.06, 0);
+    this.playTone(196, 0.3, 'triangle', 0.06, 0.5);
+    this.playTone(262, 0.5, 'triangle', 0.07, 1.0);
+  },
+
+  click() {
+    this.init(); this.resume();
+    this.playTone(660, 0.04, 'square', 0.04);
+  },
+
+  // --- BGM ---
+
+  startBGM() {
+    if (this.bgmPlaying || this.muted) return;
+    this.init(); this.resume();
+    this.bgmPlaying = true;
+
+    // Catchy 8-bit melody (pentatonic: C D E G A)
+    const melody = [
+      330,330,392,  0, 440,440,392,  0, 330,392,440,523, 494,440,392,  0,
+      392,440,392,330, 294,330,392,  0, 330,294,262,  0, 294,330,392,262
+    ];
+    const bass = [
+      131,  0,131,  0, 196,  0,196,  0, 220,  0,220,  0, 165,  0,165,  0,
+      131,  0,131,  0, 196,  0,196,  0, 220,  0,147,  0, 196,  0,131,  0
+    ];
+
+    const tempo = 175;
+    let idx = 0;
+    const playNext = () => {
+      if (!this.bgmPlaying) return;
+      const i = idx % melody.length;
+      if (melody[i] > 0) this.playTone(melody[i], tempo / 1000 * 0.65, 'square', 0.025);
+      if (bass[i] > 0)   this.playTone(bass[i],   tempo / 1000 * 0.85, 'triangle', 0.02);
+      // Simple percussion on beats
+      if (idx % 4 === 0) this.playTone(80, 0.03, 'square', 0.03);
+      if (idx % 4 === 2) this.playTone(120, 0.02, 'square', 0.015);
+      idx++;
+      this.bgmTimeout = setTimeout(playNext, tempo);
+    };
+    playNext();
+  },
+
+  stopBGM() {
+    this.bgmPlaying = false;
+    if (this.bgmTimeout) clearTimeout(this.bgmTimeout);
+    this.bgmTimeout = null;
+  },
+
+  toggle() {
+    this.muted = !this.muted;
+    if (this.muted) {
+      this.stopBGM();
+    }
+    return this.muted;
+  }
+};
+
+// Helper: determine if effects are net positive or negative
+function isNetPositive(effects) {
+  let score = 0;
+  for (const e of effects) {
+    if (e.action === 'setMoney' || e.action === 'halveSP') score -= 2;
+    else if (e.action === 'spToMoney') score += 1;
+    else if (e.action === 'jumpToGoal') score += 0;
+    else if (e.stat === 'money') score += e.value > 0 ? 1 : -1;
+    else if (e.stat === 'sp') score += e.value > 0 ? 1 : -1;
+    else if (e.stat === 'gpa') score += e.value > 0 ? 1 : -1;
+  }
+  return score;
+}
+
+/* ============================================================
+   FIREBASE CONFIGURATION
+   Mode B（マルチデバイスモード）を使用するには、
+   Firebase プロジェクトを作成し、以下の設定を入力してください。
+   1. https://console.firebase.google.com/ でプロジェクト作成
+   2. Realtime Database を有効化（ルールは読み書き許可に設定）
+   3. Authentication > Anonymous を有効化
+   4. 以下にプロジェクトの設定値を入力
+   ============================================================ */
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyBiaCjaSpk_50PJN3IK-dQdaRyJHddpJWg",
+  authDomain: "zencb-bc939.firebaseapp.com",
+  databaseURL: "https://zencb-bc939-default-rtdb.firebaseio.com",
+  projectId: "zencb-bc939",
+};
+
+const isFirebaseConfigured = !!(FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.databaseURL);
+
+function generateRoomCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  for (let i = 0; i < 4; i++) code += chars[Math.floor(Math.random() * chars.length)];
+  return code;
+}
+
+/* ============================================================
+   FIREBASE MANAGER
+   ============================================================ */
+const FirebaseManager = {
+  db: null,
+  auth: null,
+  uid: null,
+  roomCode: null,
+  initialized: false,
+  listeners: [],
+
+  init() {
+    if (this.initialized) return true;
+    if (!isFirebaseConfigured || typeof firebase === 'undefined') return false;
+    try {
+      firebase.initializeApp(FIREBASE_CONFIG);
+      this.db = firebase.database();
+      this.auth = firebase.auth();
+      this.initialized = true;
+      return true;
+    } catch (e) {
+      console.error('Firebase init error:', e);
+      return false;
+    }
+  },
+
+  async signIn() {
+    if (!this.auth) return null;
+    try {
+      const result = await this.auth.signInAnonymously();
+      this.uid = result.user.uid;
+      return this.uid;
+    } catch (e) {
+      console.error('Auth error:', e);
+      return null;
+    }
+  },
+
+  async createRoom() {
+    const code = generateRoomCode();
+    this.roomCode = code;
+    await this.db.ref(`rooms/${code}`).set({
+      status: 'waiting',
+      hostId: this.uid,
+      createdAt: firebase.database.ServerValue.TIMESTAMP,
+      players: {},
+      game: null,
+      action: null,
+    });
+    return code;
+  },
+
+  async joinRoom(code, name, character) {
+    if (!this.db) throw new Error('接続中です。少し待ってから再試行してください');
+    if (!this.uid) throw new Error('認証中です。少し待ってから再試行してください');
+    this.roomCode = code;
+    const snapshot = await this.db.ref(`rooms/${code}`).once('value');
+    if (!snapshot.exists()) throw new Error('部屋が見つかりません');
+    const room = snapshot.val();
+    if (room.status !== 'waiting') throw new Error('この部屋はすでにゲーム中です');
+    const playerCount = room.players ? Object.keys(room.players).length : 0;
+    if (playerCount >= 4) throw new Error('部屋が満員です（最大4人）');
+    const usedChars = room.players ? Object.values(room.players).map(p => p.character) : [];
+    if (usedChars.includes(character)) throw new Error('そのキャラクターは既に選ばれています');
+
+    await this.db.ref(`rooms/${code}/players/${this.uid}`).set({
+      name,
+      character,
+      order: playerCount,
+    });
+    this.db.ref(`rooms/${code}/players/${this.uid}`).onDisconnect().remove();
+  },
+
+  listenRoom(callback) {
+    if (!this.roomCode || !this.db) return () => {};
+    const ref = this.db.ref(`rooms/${this.roomCode}`);
+    const handler = ref.on('value', snap => callback(snap.val()));
+    this.listeners.push({ ref, event: 'value', handler });
+    return () => ref.off('value', handler);
+  },
+
+  listenAction(callback) {
+    if (!this.roomCode || !this.db) return () => {};
+    const ref = this.db.ref(`rooms/${this.roomCode}/action`);
+    const handler = ref.on('value', snap => {
+      const action = snap.val();
+      if (action) callback(action);
+    });
+    this.listeners.push({ ref, event: 'value', handler });
+    return () => ref.off('value', handler);
+  },
+
+  async writeAction(action) {
+    if (!this.roomCode || !this.db) return;
+    await this.db.ref(`rooms/${this.roomCode}/action`).set({
+      ...action,
+      uid: this.uid,
+      ts: Date.now(),
+    });
+  },
+
+  async clearAction() {
+    if (!this.roomCode || !this.db) return;
+    await this.db.ref(`rooms/${this.roomCode}/action`).set(null);
+  },
+
+  async updateGameState(gameState) {
+    if (!this.roomCode || !this.db) return;
+    await this.db.ref(`rooms/${this.roomCode}/game`).set(gameState);
+  },
+
+  async updateRoomStatus(status) {
+    if (!this.roomCode || !this.db) return;
+    await this.db.ref(`rooms/${this.roomCode}/status`).set(status);
+  },
+
+  async startGame(gameState) {
+    if (!this.roomCode || !this.db) return;
+    await this.db.ref(`rooms/${this.roomCode}`).update({
+      status: 'playing',
+      game: gameState,
+      action: null,
+    });
+  },
+
+  cleanup() {
+    for (const { ref, event, handler } of this.listeners) {
+      ref.off(event, handler);
+    }
+    this.listeners = [];
+  },
+
+  async deleteRoom() {
+    if (this.roomCode && this.db) {
+      await this.db.ref(`rooms/${this.roomCode}`).remove();
+    }
+    this.roomCode = null;
+  },
+
+  // Clean up rooms older than 1 hour (run by host on init)
+  async cleanupOldRooms() {
+    if (!this.db) return;
+    try {
+      const snap = await this.db.ref('rooms').once('value');
+      const rooms = snap.val();
+      if (!rooms) return;
+      const now = Date.now();
+      const ONE_HOUR = 60 * 60 * 1000;
+      for (const [code, room] of Object.entries(rooms)) {
+        if (room.createdAt && (now - room.createdAt) > ONE_HOUR) {
+          await this.db.ref(`rooms/${code}`).remove();
+        }
+      }
+    } catch (e) { /* ignore cleanup errors */ }
+  },
+
+  getJoinUrl(code, customHost) {
+    if (customHost) {
+      const proto = window.location.protocol;
+      const port = window.location.port ? ':' + window.location.port : '';
+      const path = window.location.pathname;
+      return `${proto}//${customHost}${port}${path}?room=${code}`;
+    }
+    const base = window.location.origin + window.location.pathname;
+    return `${base}?room=${code}`;
+  }
+};
+
+/* ============================================================
+   QR CODE DISPLAY COMPONENT
+   ============================================================ */
+function QRCodeDisplay({ text, size = 200 }) {
+  const [dataUrl, setDataUrl] = useState(null);
+  useEffect(() => {
+    if (typeof QRious !== 'undefined' && text) {
+      try {
+        const qr = new QRious({ value: text, size: size, level: 'M', padding: 8 });
+        setDataUrl(qr.toDataURL('image/png'));
+      } catch (e) {
+        console.error('QR generation error:', e);
+      }
+    }
+  }, [text, size]);
+  if (!dataUrl) return <div className="text-gray-500 text-sm">QRコード生成中...</div>;
+  return <img src={dataUrl} alt="QR Code" className="rounded-xl bg-white p-1" style={{ width: size, height: size }} />;
+}
+
+/* ============================================================
+   CONFETTI COMPONENT
+   ============================================================ */
+function Confetti() {
+  const pieces = useMemo(() => {
+    const colors = ['#FF6B6B', '#4ECDC4', '#FFE66D', '#95E1D3', '#F38181', '#AA96DA', '#FCBAD3', '#FF9FF3', '#54A0FF', '#5F27CD'];
+    return Array.from({ length: 60 }, (_, i) => ({
+      id: i,
+      left: Math.random() * 100,
+      delay: Math.random() * 2.5,
+      duration: 2.5 + Math.random() * 2,
+      color: colors[i % colors.length],
+      size: 6 + Math.random() * 12,
+      isCircle: Math.random() > 0.5,
+    }));
+  }, []);
+  return (
+    <div className="fixed inset-0 pointer-events-none overflow-hidden z-50">
+      {pieces.map(p => (
+        <div
+          key={p.id}
+          className="absolute animate-confetti"
+          style={{
+            left: `${p.left}%`,
+            top: '-5%',
+            width: `${p.size}px`,
+            height: `${p.size}px`,
+            backgroundColor: p.color,
+            animationDelay: `${p.delay}s`,
+            animationDuration: `${p.duration}s`,
+            borderRadius: p.isCircle ? '50%' : '2px',
+            transform: `rotate(${Math.random() * 360}deg)`,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+/* ============================================================
+   DICE DISPLAY COMPONENT
+   ============================================================ */
+function DiceDisplay({ value, rolling }) {
+  return (
+    <div className={`inline-flex items-center justify-center w-20 h-20 sm:w-24 sm:h-24 rounded-2xl text-5xl sm:text-6xl select-none ${rolling ? 'animate-dice' : ''}`}
+         style={{ background: 'linear-gradient(135deg, #f8fafc, #e2e8f0)', boxShadow: '0 4px 12px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.8)' }}>
+      {value ? DICE_FACES[value - 1] : '🎲'}
+    </div>
+  );
+}
+
+/* ============================================================
+   CHARACTER AVATAR
+   ============================================================ */
+/* SVGキャラアバター（30×40 viewBoxのsymbolを<use>で呼び出す） */
+function CharacterAvatar({ character, size = 'md', className = '' }) {
+  const ch = CHARACTERS.find(c => c.id === character);
+  if (!ch) return null;
+  // [width, height] — 3:4 アスペクト比 (30:40)
+  const dims = { xs: [22, 30], sm: [30, 40], md: [45, 60], lg: [75, 100], xl: [120, 160] };
+  const [w, h] = dims[size] || dims.md;
+  return (
+    <div className={`flex-shrink-0 ${className}`} style={{ width: w, height: h }}>
+      <svg viewBox="0 0 30 40" width={w} height={h} style={{ display: 'block' }}>
+        <use href={`#char-${character}`}/>
+      </svg>
+    </div>
+  );
+}
+
+/* ============================================================
+   EFFECT LIST DISPLAY
+   ============================================================ */
+function EffectList({ effects, player }) {
+  if (!effects || effects.length === 0) return <p className="text-gray-400 text-sm">変動なし</p>;
+  return (
+    <div className="space-y-1">
+      {effects.map((e, i) => {
+        const d = effectDisplay(e, player);
+        return (
+          <div key={i} className={`text-sm sm:text-base font-bold ${d.positive ? 'text-green-400' : d.negative ? 'text-red-400' : 'text-yellow-300'}`}>
+            {d.icon} {d.text}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ============================================================
+   EVENT MODAL COMPONENT
+   ============================================================ */
+function EventModal({ square: rawSquare, player, onComplete, remoteAction, onRemoteActionConsumed }) {
+  // ── キャラ別イベントの解決 ───────────────────────────────
+  // characterEvents がある場合、player.character に対応したイベントで上書き
+  const square = useMemo(() => {
+    if (!rawSquare.characterEvents || !player?.character) return rawSquare;
+    const charEv = rawSquare.characterEvents[player.character];
+    if (!charEv) return rawSquare;
+    // skipTurn は明示指定のみ有効にし、基底マスから引き継がない
+    return { ...rawSquare, skipTurn: false, effects: [], ...charEv };
+  }, [rawSquare, player?.character]);
+
+  const isCharacterSquare = !!rawSquare.characterEvents;
+  const charInfo = isCharacterSquare ? CHARACTERS.find(c => c.id === player?.character) : null;
+
+  const [phase, setPhase] = useState('initial');
+  const [judgmentDice, setJudgmentDice] = useState(null);
+  const [rolling, setRolling] = useState(false);
+  const [resolvedEffects, setResolvedEffects] = useState(null);
+  const [resultLabel, setResultLabel] = useState('');
+  const rollInterval = useRef(null);
+
+  // Play effect sound when resolved
+  useEffect(() => {
+    if (phase === 'resolved' && resolvedEffects) {
+      const net = isNetPositive(resolvedEffects);
+      if (resolvedEffects.some(e => e.action === 'skipTurn')) SoundManager.skipTurn();
+      else if (net > 0) SoundManager.positive();
+      else if (net < 0) SoundManager.negative();
+      else SoundManager.click();
+    }
+  }, [phase]);
+
+  useEffect(() => {
+    // Auto-resolve for normal squares (no choices, no dice)
+    if (!square.choices && !square.dice) {
+      const allEffects = [...square.effects];
+      if (square.skipTurn) allEffects.push({ action: 'skipTurn' });
+      setResolvedEffects(allEffects);
+      setPhase('resolved');
+    }
+    // Play choice/judgment sound for interactive squares
+    if (square.choices) SoundManager.choiceAppear();
+    if (square.dice) SoundManager.judgmentRoll();
+  }, [square]);
+
+  function handleChoice(choiceIdx) {
+    SoundManager.click();
+    const choice = square.choices[choiceIdx];
+    const allEffects = [...choice.effects];
+    if (square.skipTurn) allEffects.push({ action: 'skipTurn' });
+    setResolvedEffects(allEffects);
+    setResultLabel(choice.label);
+    setPhase('resolved');
+  }
+
+  function handleJudgmentRoll() {
+    SoundManager.diceRoll();
+    setRolling(true);
+    const result = Math.floor(Math.random() * 6) + 1;
+    let count = 0;
+    rollInterval.current = setInterval(() => {
+      setJudgmentDice(Math.floor(Math.random() * 6) + 1);
+      count++;
+      if (count > 12) {
+        clearInterval(rollInterval.current);
+        setJudgmentDice(result);
+        setRolling(false);
+        // Determine effects based on dice type
+        const d = square.dice;
+        let effects = [];
+        let label = '';
+        if (d.type === 'evenOdd') {
+          if (result % 2 === 0) {
+            effects = d.even;
+            label = d.evenLabel || '偶数！';
+          } else {
+            effects = d.odd;
+            label = d.oddLabel || '奇数…';
+          }
+        } else if (d.type === 'multiply') {
+          const amount = result * d.multiplier;
+          effects = [{ stat: d.target, value: amount }];
+          label = `${result} × ${d.multiplier} = ${amount}${d.label || ''}`;
+        } else if (d.type === 'range') {
+          for (const range of d.ranges) {
+            if (result >= range.min && result <= range.max) {
+              effects = range.effects;
+              label = range.label || '';
+              break;
+            }
+          }
+        }
+        const allEffects = [...square.effects, ...effects];
+        if (square.skipTurn) allEffects.push({ action: 'skipTurn' });
+        setResolvedEffects(allEffects);
+        setResultLabel(label);
+        setPhase('resolved');
+      }
+    }, 80);
+  }
+
+  useEffect(() => {
+    return () => { if (rollInterval.current) clearInterval(rollInterval.current); };
+  }, []);
+
+  // Handle remote actions (from controller in Mode B)
+  useEffect(() => {
+    if (!remoteAction) return;
+    if (remoteAction.type === 'choice' && phase === 'initial' && square.choices) {
+      handleChoice(remoteAction.value);
+      if (onRemoteActionConsumed) onRemoteActionConsumed();
+    } else if (remoteAction.type === 'judgment' && phase === 'initial' && square.dice) {
+      handleJudgmentRoll();
+      if (onRemoteActionConsumed) onRemoteActionConsumed();
+    }
+  }, [remoteAction]);
+
+  const typeIcon = TYPE_ICONS[square.type] || '❓';
+  const isInterviewBadge = square.isInterview;
+
+  return (
+    <div className="fixed inset-0 z-40 flex items-center justify-center p-4 animate-fade-in"
+         style={{ backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(6px)' }}>
+      <div className="w-full max-w-md max-h-[85vh] overflow-y-auto animate-slide-up rounded-2xl"
+           style={{ background: 'linear-gradient(180deg, #1e293b 0%, #0f172a 100%)', border: '1px solid rgba(99,102,241,0.2)', boxShadow: '0 24px 48px rgba(0,0,0,0.5)' }}>
+        {/* キャラ別マス：専用バナー */}
+        {isCharacterSquare && charInfo && (
+          <div className="px-5 pt-4 pb-3 flex items-center gap-3"
+               style={{ background: `linear-gradient(135deg, ${charInfo.color}22, ${charInfo.color}11)`,
+                        borderBottom: `2px solid ${charInfo.color}66` }}>
+            <svg viewBox="0 0 30 40" width="36" height="48" style={{ display: 'block', flexShrink: 0 }}>
+              <use href={`#char-${charInfo.id}`}/>
+            </svg>
+            <div>
+              <div className="text-[10px] font-bold tracking-wide" style={{ color: charInfo.color }}>
+                🌟 {charInfo.name}（{charInfo.role}）専用イベント
+              </div>
+              <div className="text-[11px] mt-0.5" style={{ color: '#94a3b8' }}>
+                このマスはキャラクターによって内容が変わります
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Header */}
+        <div className="p-5 pb-3" style={{ borderBottom: '1px solid rgba(51,65,85,0.5)' }}>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl"
+                 style={{ background: isCharacterSquare ? `${charInfo?.color}22` : 'rgba(99,102,241,0.15)',
+                          border: isCharacterSquare ? `1.5px solid ${charInfo?.color}66` : 'none' }}>
+              {typeIcon}
+            </div>
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-0.5">
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                      style={{ background: 'rgba(99,102,241,0.15)', color: '#a5b4fc' }}>マス{square.id}</span>
+                {isInterviewBadge && <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                      style={{ background: 'rgba(139,92,246,0.2)', color: '#c4b5fd' }}>✨ 体験談</span>}
+              </div>
+              <h3 className="text-base font-bold" style={{ color: isCharacterSquare ? charInfo?.color : '#e2e8f0' }}>
+                {square.title}
+              </h3>
+            </div>
+          </div>
+        </div>
+
+        {/* Body */}
+        <div className="p-5 space-y-4">
+          <p className="text-sm leading-relaxed" style={{ color: '#94a3b8' }}>{square.description}</p>
+
+          {/* Dice Judgment */}
+          {square.dice && phase === 'initial' && (
+            <div className="text-center space-y-3">
+              <p className="font-semibold" style={{ color: '#a5b4fc' }}>🎲 サイコロ判定！</p>
+              <button
+                onClick={handleJudgmentRoll}
+                className="px-8 py-3 font-bold rounded-xl text-lg active:scale-[0.97] transition-all"
+                style={{ background: 'linear-gradient(135deg, #4f46e5, #7c3aed)', color: '#fff', boxShadow: '0 4px 15px rgba(79,70,229,0.4)' }}
+              >
+                🎲 サイコロを振る
+              </button>
+            </div>
+          )}
+
+          {/* Choice Buttons */}
+          {square.choices && phase === 'initial' && (
+            <div className="space-y-2">
+              <p className="font-semibold text-center" style={{ color: '#a5b4fc' }}>どちらを選ぶ？</p>
+              {square.choices.map((c, i) => (
+                <button
+                  key={i}
+                  onClick={() => handleChoice(i)}
+                  className="w-full p-3 rounded-xl text-left active:scale-[0.98] transition-all"
+                  style={{ background: 'rgba(51,65,85,0.3)', border: '1px solid rgba(71,85,105,0.4)' }}
+                >
+                  <div className="font-bold text-sm" style={{ color: '#e2e8f0' }}>{c.label}</div>
+                  <div className="mt-1">
+                    <EffectList effects={c.effects} player={player} />
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Judgment Dice Display */}
+          {judgmentDice && (
+            <div className="text-center">
+              <DiceDisplay value={judgmentDice} rolling={rolling} />
+              {resultLabel && <p className="mt-2 font-bold" style={{ color: '#a5b4fc' }}>{resultLabel}</p>}
+            </div>
+          )}
+
+          {/* Resolved Effects */}
+          {phase === 'resolved' && (
+            <div className="rounded-xl p-3 animate-slide-up"
+                 style={{ background: 'rgba(15,23,42,0.6)', border: '1px solid rgba(51,65,85,0.4)' }}>
+              <p className="text-[10px] mb-2" style={{ color: '#64748b' }}>結果</p>
+              <EffectList effects={resolvedEffects} player={player} />
+            </div>
+          )}
+
+          {/* OK Button */}
+          {phase === 'resolved' && (
+            <button
+              onClick={() => onComplete(resolvedEffects)}
+              className="w-full py-3 font-bold rounded-xl text-lg active:scale-[0.98] transition-all"
+              style={{ background: 'linear-gradient(135deg, #4f46e5, #6366f1)', color: '#fff', boxShadow: '0 4px 12px rgba(79,70,229,0.3)' }}
+            >
+              OK
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   CAMPUS MAP BOARD (横型 860x780)
+   ============================================================ */
+/* ============================================================
+   THREE.JS 3D BOARD HELPERS  — ミニチュア・ジオラマ版
+   ============================================================ */
+
+// SVG座標 (860×780) → Three.js 3D座標 変換
+function squareTo3D(coord) {
+  return { x: (coord.x - 406.5) * 0.05, z: (coord.y - 403) * 0.05 };
+}
+
+// キャンバスを使ってマスラベル Sprite を生成
+function makeSquareSprite(sqId, sqTitle) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 128; canvas.height = 72;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = 'rgba(255,255,255,0.88)';
+  roundRect(ctx, 2, 2, 124, 68, 12);
+  ctx.fill();
+  ctx.font = 'Bold 28px Arial';
+  ctx.fillStyle = '#2a4a3a';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  ctx.fillText(String(sqId), 64, 4);
+  if (sqTitle) {
+    ctx.font = '11px Arial';
+    ctx.fillStyle = '#445533';
+    ctx.fillText(sqTitle.slice(0, 7), 64, 38);
+  }
+  const tex = new THREE.CanvasTexture(canvas);
+  const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false });
+  const sprite = new THREE.Sprite(mat);
+  sprite.scale.set(1.1, 0.62, 1);
+  return sprite;
+}
+
+// プレイヤー名ラベル Sprite（コマ上の吹き出し）
+function makePieceLabelSprite(name, hexColor, isCurrent) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 192; canvas.height = 64;
+  const ctx = canvas.getContext('2d');
+  const r = (hexColor >> 16) & 255;
+  const g = (hexColor >> 8) & 255;
+  const b = hexColor & 255;
+  // 吹き出し背景
+  ctx.fillStyle = isCurrent
+    ? `rgba(255,255,255,0.97)`
+    : `rgba(${r},${g},${b},0.88)`;
+  roundRect(ctx, 4, 4, 184, 42, 12);
+  ctx.fill();
+  // 枠線
+  ctx.strokeStyle = isCurrent
+    ? `rgb(${r},${g},${b})`
+    : 'rgba(255,255,255,0.75)';
+  ctx.lineWidth = isCurrent ? 4 : 2;
+  roundRect(ctx, 4, 4, 184, 42, 12);
+  ctx.stroke();
+  // 名前テキスト
+  ctx.font = isCurrent ? 'Bold 24px Arial' : 'Bold 20px Arial';
+  ctx.fillStyle = isCurrent ? `rgb(${r},${g},${b})` : '#ffffff';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.shadowColor = 'rgba(0,0,0,0.5)';
+  ctx.shadowBlur = 3;
+  ctx.fillText(name.slice(0, 7), 96, 23);
+  // 下向き三角ポインタ
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = isCurrent
+    ? `rgba(255,255,255,0.97)`
+    : `rgba(${r},${g},${b},0.88)`;
+  ctx.beginPath();
+  ctx.moveTo(84, 46);
+  ctx.lineTo(108, 46);
+  ctx.lineTo(96, 60);
+  ctx.closePath();
+  ctx.fill();
+  if (isCurrent) {
+    ctx.strokeStyle = `rgb(${r},${g},${b})`;
+    ctx.lineWidth = 3;
+    ctx.stroke();
+  }
+  const tex = new THREE.CanvasTexture(canvas);
+  const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false });
+  const sprite = new THREE.Sprite(mat);
+  sprite.scale.set(1.9, 0.63, 1);
+  return sprite;
+}
+
+// 建物名ラベル Sprite
+function makeBuildingSprite(name) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 160; canvas.height = 40;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = 'rgba(255,255,255,0.92)';
+  roundRect(ctx, 0, 0, 160, 40, 8);
+  ctx.fill();
+  ctx.font = 'Bold 18px Arial';
+  ctx.fillStyle = '#334455';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(name, 80, 20);
+  const tex = new THREE.CanvasTexture(canvas);
+  const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false });
+  const sprite = new THREE.Sprite(mat);
+  sprite.scale.set(1.8, 0.45, 1);
+  return sprite;
+}
+
+// Canvas角丸矩形ヘルパー
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
+// コマのホップアニメーション（放物線アーク）
+function animatePieceHop(pieceGroup, targetX, targetZ, duration = 650) {
+  const startX = pieceGroup.position.x;
+  const startZ = pieceGroup.position.z;
+  const startTime = performance.now();
+  const midX = (startX + targetX) / 2;
+  const midZ = (startZ + targetZ) / 2;
+  const hopHeight = 1.8;
+  pieceGroup.userData.isHopping = true;
+
+  function step(now) {
+    const t = Math.min((now - startTime) / duration, 1);
+    const u = 1 - t;
+    const bx = u * u * startX + 2 * u * t * midX + t * t * targetX;
+    const bz = u * u * startZ + 2 * u * t * midZ + t * t * targetZ;
+    const by = 0.28 + 4 * t * (1 - t) * hopHeight;
+    pieceGroup.position.set(bx, by, bz);
+    if (t < 1) requestAnimationFrame(step);
+    else {
+      pieceGroup.position.set(targetX, 0.28, targetZ);
+      pieceGroup.userData.isHopping = false;
+    }
+  }
+  requestAnimationFrame(step);
+}
+
+/* ============================================================
+   THREE.JS 3D BOARD COMPONENT  — ミニチュア・ジオラマ版
+   ============================================================ */
+function ThreeBoard({ players, currentPlayerPos, currentPlayerId }) {
+  const mountRef = useRef(null);
+  const threeRef = useRef(null);
+  const prevPositionsRef = useRef({});
+  const currentPlayerIdRef = useRef(currentPlayerId);
+  const prevPlayerIdRef    = useRef(null);
+  const camTimerRef        = useRef(null);
+
+  useEffect(() => {
+    if (!mountRef.current) return;
+    const W = mountRef.current.clientWidth || 860;
+    const H = 560;
+
+    // ── Renderer ──────────────────────────────────────────────
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(W, H);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.2;
+    mountRef.current.appendChild(renderer.domElement);
+
+    // ── Scene ──────────────────────────────────────────────────
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xc9e8ff);
+    scene.fog = new THREE.Fog(0xc9e8ff, 28, 90);
+
+    // ── Camera ─────────────────────────────────────────────────
+    const camera = new THREE.PerspectiveCamera(45, W / H, 0.1, 200);
+    camera.position.set(0, 30, 34);
+    camera.lookAt(0, 0, -1);
+
+    // ── Controls ───────────────────────────────────────────────
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.08;
+    controls.target.set(0, 0, -1);
+    controls.maxPolarAngle = Math.PI / 2.05;
+    controls.minDistance = 6;
+    controls.maxDistance = 70;
+
+    // ── ライト：AmbientLight（温かみある光） ───────────────────
+    scene.add(new THREE.AmbientLight(0xffe4b5, 0.6));
+
+    // ── ライト：DirectionalLight（影あり、左斜め上） ───────────
+    const dirLight = new THREE.DirectionalLight(0xfffde8, 1.2);
+    dirLight.position.set(-14, 22, 12);
+    dirLight.castShadow = true;
+    dirLight.shadow.camera.near = 0.5;
+    dirLight.shadow.camera.far = 90;
+    dirLight.shadow.camera.left = -32;
+    dirLight.shadow.camera.right = 32;
+    dirLight.shadow.camera.top = 30;
+    dirLight.shadow.camera.bottom = -30;
+    dirLight.shadow.mapSize.width = 2048;
+    dirLight.shadow.mapSize.height = 2048;
+    scene.add(dirLight);
+
+    // ── ライト：PointLight（建物窓の内側から漏れる光） ─────────
+    const winLight1 = new THREE.PointLight(0xffeeaa, 1.2, 8);
+    winLight1.position.set(-12.3, 2.5, -3.4);
+    scene.add(winLight1);
+    const winLight2 = new THREE.PointLight(0xffddaa, 1.0, 7);
+    winLight2.position.set(11.7, 2.0, -11.2);
+    scene.add(winLight2);
+
+    // ── 地面（芝生）MeshStandardMaterial ──────────────────────
+    const groundGeo = new THREE.PlaneGeometry(62, 56);
+    const groundMat = new THREE.MeshStandardMaterial({ color: 0x7ec850, roughness: 0.9, metalness: 0.0 });
+    const ground = new THREE.Mesh(groundGeo, groundMat);
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.y = -0.01;
+    ground.receiveShadow = true;
+    scene.add(ground);
+
+    // ── 道路（ベージュ・MeshStandardMaterial） ─────────────────
+    function addRoadStrip(cx, cz, w, d) {
+      const geo = new THREE.PlaneGeometry(w, d);
+      const mat = new THREE.MeshStandardMaterial({ color: 0xe8d8b0, roughness: 0.85, metalness: 0.0 });
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.rotation.x = -Math.PI / 2;
+      mesh.position.set(cx, 0.01, cz);
+      mesh.receiveShadow = true;
+      scene.add(mesh);
+      // センターライン
+      const lineGeo = new THREE.PlaneGeometry(w * 0.04, d * 0.92);
+      const lineMat = new THREE.MeshStandardMaterial({ color: 0xd0c090, roughness: 0.9, transparent: true, opacity: 0.55 });
+      const line = new THREE.Mesh(lineGeo, lineMat);
+      line.rotation.x = -Math.PI / 2;
+      line.position.set(cx, 0.015, cz);
+      scene.add(line);
+    }
+    [60, 195, 470, 740].forEach(sy => addRoadStrip(0, (sy - 403) * 0.05, 62, 0.85));
+    [30, 408, 790].forEach(sx => addRoadStrip((sx - 406.5) * 0.05, 0, 0.85, 56));
+
+    // ── 池（水色ツヤツヤ楕円） ────────────────────────────────
+    const pondGeo = new THREE.CircleGeometry(1.6, 32);
+    const pondMat = new THREE.MeshStandardMaterial({ color: 0x55c8e8, roughness: 0.0, metalness: 0.3 });
+    const pond = new THREE.Mesh(pondGeo, pondMat);
+    pond.rotation.x = -Math.PI / 2;
+    pond.position.set(2.5, 0.02, 2.0);
+    pond.scale.set(1.0, 1.0, 0.6);
+    pond.receiveShadow = true;
+    scene.add(pond);
+    // 池の縁（細いリング）
+    const pondEdgeGeo = new THREE.RingGeometry(1.58, 1.78, 32);
+    const pondEdgeMat = new THREE.MeshStandardMaterial({ color: 0x88aacc, roughness: 0.6, side: THREE.DoubleSide });
+    const pondEdge = new THREE.Mesh(pondEdgeGeo, pondEdgeMat);
+    pondEdge.rotation.x = -Math.PI / 2;
+    pondEdge.position.set(2.5, 0.022, 2.0);
+    pondEdge.scale.set(1.0, 1.0, 0.6);
+    scene.add(pondEdge);
+
+    // ── マス目（厚みある板・MeshStandardMaterial・上面/側面色分け） ──
+    const SQ_BASE_COLORS = {
+      start:      0x3ecfcc, goal:       0xe8a030,
+      zen:        0x9ac8f0, startup:    0xf4b09a,
+      event:      0xf5e07a, trouble:    0xf0a0a0,
+      lucky:      0x90e8a8, choice:     0xc890f0,
+      settlement: 0xf0c860, character:  0xd890e8,
+    };
+    const squareMeshes = {};
+
+    BOARD.forEach(sq => {
+      const coord = SQUARE_COORDS.find(c => c.id === sq.id);
+      if (!coord) return;
+      const { x, z } = squareTo3D(coord);
+      const isSpecial = ['start', 'goal', 'settlement'].includes(sq.type);
+      const h = 0.30;
+      const w = isSpecial ? 1.72 : 1.38;
+
+      const baseColor = SQ_BASE_COLORS[sq.type] || 0xd8d8d8;
+      const topCol = new THREE.Color(baseColor);
+      const sideCol = new THREE.Color(baseColor).multiplyScalar(0.72);
+
+      // 上面・底面・4側面で別マテリアル（BoxGeometry面順: +x,-x,+y,-y,+z,-z）
+      const topMat  = new THREE.MeshStandardMaterial({ color: topCol,  roughness: 0.35, metalness: 0.12 });
+      const sideMat = new THREE.MeshStandardMaterial({ color: sideCol, roughness: 0.50, metalness: 0.08 });
+      const botMat  = new THREE.MeshStandardMaterial({ color: sideCol, roughness: 0.60, metalness: 0.05 });
+      const mats = [sideMat, sideMat, topMat, botMat, sideMat, sideMat];
+
+      const geo = new THREE.BoxGeometry(w, h, w);
+      const mesh = new THREE.Mesh(geo, mats);
+      mesh.position.set(x, h / 2, z);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      scene.add(mesh);
+      squareMeshes[sq.id] = { mesh, topMat };
+
+      // エッジ（輪郭線）
+      const edges = new THREE.EdgesGeometry(geo);
+      const edgeMesh = new THREE.LineSegments(
+        edges,
+        new THREE.LineBasicMaterial({ color: 0x666666, opacity: 0.28, transparent: true })
+      );
+      edgeMesh.position.copy(mesh.position);
+      scene.add(edgeMesh);
+
+      // テキストラベル Sprite
+      const sprite = makeSquareSprite(sq.id, sq.title);
+      sprite.position.set(x, h + 0.58, z);
+      scene.add(sprite);
+    });
+
+    // ── パス接続（TubeGeometry曲線） ──────────────────────────
+    for (let i = 0; i < SQUARE_COORDS.length - 1; i++) {
+      const c1 = SQUARE_COORDS[i], c2 = SQUARE_COORDS[i + 1];
+      const p1 = squareTo3D(c1), p2 = squareTo3D(c2);
+      const isCorner = [8, 16, 24, 32].includes(i + 1);
+      const midY = isCorner ? 0.75 : 0.20;
+      const curve = new THREE.QuadraticBezierCurve3(
+        new THREE.Vector3(p1.x, 0.18, p1.z),
+        new THREE.Vector3((p1.x + p2.x) / 2, midY, (p1.z + p2.z) / 2),
+        new THREE.Vector3(p2.x, 0.18, p2.z)
+      );
+      const tube = new THREE.Mesh(
+        new THREE.TubeGeometry(curve, 22, 0.058, 8, false),
+        new THREE.MeshStandardMaterial({ color: 0xc8a060, roughness: 0.6, metalness: 0.1 })
+      );
+      tube.receiveShadow = true;
+      scene.add(tube);
+    }
+
+    // ── キャンパス建物 GLB版（Kenney city kit commercial）────────────
+    const buildings = [
+      { name: '図書館',   sx: 160, sy: 336, glb: '/assets/buildings/building-d.glb',            wallC: 0xd4c8b4, roofC: 0xe05050, winC: 0xffffcc, scale: 1.05 },
+      { name: '食堂',     sx: 640, sy: 602, glb: '/assets/buildings/building-b.glb',            wallC: 0xa8d4a0, roofC: 0xf47830, winC: 0xfff0cc, scale: 0.90 },
+      { name: '体育館',   sx: 738, sy: 338, glb: '/assets/buildings/building-f.glb',            wallC: 0x9ab8d8, roofC: 0x3a7fd8, winC: 0xccf0ff, scale: 1.15 },
+      { name: '工学部棟', sx: 76,  sy: 602, glb: '/assets/buildings/building-skyscraper-a.glb', wallC: 0xc8b88c, roofC: 0xe05820, winC: 0xffffaa, scale: 0.70 },
+      { name: '研究棟',   sx: 730, sy: 179, glb: '/assets/buildings/building-skyscraper-c.glb', wallC: 0x90b8b0, roofC: 0x50a860, winC: 0xccffee, scale: 0.75 },
+      { name: '部室棟',   sx: 415, sy: 598, glb: '/assets/buildings/building-a.glb',            wallC: 0xd4a8d0, roofC: 0xe8a820, winC: 0xffe0ff, scale: 0.80 },
+      { name: '講義棟',   sx: 160, sy: 178, glb: '/assets/buildings/building-c.glb',            wallC: 0xb8a8d8, roofC: 0x5870d0, winC: 0xeeccff, scale: 0.95 },
+    ];
+
+    function placeBuildingGLB(bd, model) {
+      const bx = (bd.sx - 406.5) * 0.05;
+      const bz = (bd.sy - 403) * 0.05;
+      const wallColor = new THREE.Color(bd.wallC);
+      const roofColor = new THREE.Color(bd.roofC);
+
+      // テクスチャを外してソリッドカラーを適用
+      model.traverse(child => {
+        if (child.isMesh) {
+          child.castShadow = true;
+          child.receiveShadow = true;
+          if (child.material) {
+            child.material = child.material.clone();
+            child.material.map          = null;   // テクスチャ剥がし
+            child.material.normalMap    = null;
+            child.material.roughnessMap = null;
+            child.material.metalnessMap = null;
+            child.material.color        = wallColor.clone();
+            child.material.emissive     = wallColor.clone();
+            child.material.emissiveIntensity = 0.08;
+            child.material.roughness    = 0.70;
+            child.material.metalness    = 0.04;
+          }
+        }
+      });
+
+      // フットプリント（XZ幅）基準でスケーリング（目標幅 = 4 × scale ユニット）
+      const tmpBox = new THREE.Box3().setFromObject(model);
+      const tmpSz  = tmpBox.getSize(new THREE.Vector3());
+      const footprintMax = Math.max(tmpSz.x, tmpSz.z);
+      const scaleF = (4.0 * (bd.scale || 1.0)) / footprintMax;
+      model.scale.set(scaleF, scaleF, scaleF);
+
+      // スケール後の境界ボックスで接地
+      const box   = new THREE.Box3().setFromObject(model);
+      const boxSz = box.getSize(new THREE.Vector3());
+      const modelH = boxSz.y;
+      model.position.set(bx, 0.18 - box.min.y, bz);
+      scene.add(model);
+
+      // 屋上カラー帯（roofC 色のキャップ）
+      const capH = Math.max(modelH * 0.10, 0.22);
+      const roofCapMat = new THREE.MeshStandardMaterial({
+        color: roofColor.clone(), emissive: roofColor.clone(),
+        emissiveIntensity: 0.45, roughness: 0.45, metalness: 0.12,
+      });
+      const roofCap = new THREE.Mesh(
+        new THREE.BoxGeometry(boxSz.x + 0.08, capH, boxSz.z + 0.08),
+        roofCapMat
+      );
+      roofCap.position.set(bx, 0.18 + modelH - capH * 0.5, bz);
+      roofCap.castShadow = true;
+      scene.add(roofCap);
+
+      // 内部PointLight（窓から漏れる明かり演出）
+      const winLight = new THREE.PointLight(new THREE.Color(bd.winC), 1.2, 7.0);
+      winLight.position.set(bx, 0.18 + modelH * 0.38, bz);
+      scene.add(winLight);
+
+      // 建物名ラベル
+      const label = makeBuildingSprite(bd.name);
+      label.position.set(bx, 0.18 + modelH + 0.65, bz);
+      scene.add(label);
+    }
+
+    function placeBuildingFallback(bd) {
+      // GLB読み込み失敗時の旧 Box ジオメトリ版
+      const bx = (bd.sx - 406.5) * 0.05;
+      const bz = (bd.sy - 403) * 0.05;
+      const h = 3.2, w = 4.2, d = 2.4;
+      const bodyMat = new THREE.MeshStandardMaterial({ color: bd.wallC, roughness: 0.65, metalness: 0.05 });
+      const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), bodyMat);
+      body.position.set(bx, 0.18 + h / 2, bz);
+      body.castShadow = true;
+      body.receiveShadow = true;
+      scene.add(body);
+      const roofMat = new THREE.MeshStandardMaterial({ color: bd.roofC, roughness: 0.5, metalness: 0.08, emissive: new THREE.Color(bd.roofC), emissiveIntensity: 0.3 });
+      const roof = new THREE.Mesh(new THREE.BoxGeometry(w + 0.3, 0.22, d + 0.3), roofMat);
+      roof.position.set(bx, 0.18 + h + 0.11, bz);
+      roof.castShadow = true;
+      scene.add(roof);
+      const label = makeBuildingSprite(bd.name);
+      label.position.set(bx, 0.18 + h + 0.7, bz);
+      scene.add(label);
+    }
+
+    const buildingGLBLoader = new THREE.GLTFLoader();
+    buildings.forEach(bd => {
+      buildingGLBLoader.load(
+        bd.glb,
+        (gltf) => placeBuildingGLB(bd, gltf.scene),
+        undefined,
+        (err) => {
+          console.warn(`Building GLB load failed (${bd.name}):`, err);
+          placeBuildingFallback(bd);
+        }
+      );
+    });
+
+    // ── 木（CylinderGeometry幹 + ConeGeometry葉・高さランダム20本）
+    const treePts2D = [
+      [95,295],[155,365],[250,320],[340,365],[530,330],[640,370],[745,295],
+      [55,175],[250,165],[460,100],[620,100],[760,175],
+      [55,500],[380,498],[520,500],[730,490],
+      [55,650],[400,645],[670,640],[305,240],
+    ];
+    const trunkBaseMat = new THREE.MeshStandardMaterial({ color: 0x8b5a2b, roughness: 0.9, metalness: 0.0 });
+    const foliageColors = [0x4a8c3a, 0x3a7c2e, 0x5ea044, 0x2e6e28];
+    treePts2D.forEach(([tx, ty], ti) => {
+      const tx3 = (tx - 406.5) * 0.05;
+      const tz3 = (ty - 403) * 0.05;
+      const rnd = (ti * 6791 + 1234) % 100 / 100;
+      const trunkH = 0.40 + rnd * 0.55;
+      const trunkR  = 0.06 + rnd * 0.06;
+      const trunk = new THREE.Mesh(
+        new THREE.CylinderGeometry(trunkR * 0.75, trunkR, trunkH, 7),
+        trunkBaseMat
+      );
+      trunk.position.set(tx3, trunkH / 2, tz3);
+      trunk.castShadow = true;
+      trunk.receiveShadow = true;
+      scene.add(trunk);
+      // 葉（コーン）を2段重ねでふわっと
+      const foliageR = 0.30 + rnd * 0.28;
+      const foliageH = 0.70 + rnd * 0.65;
+      const fCol = foliageColors[ti % foliageColors.length];
+      const foliageMat = new THREE.MeshStandardMaterial({ color: fCol, roughness: 0.85, metalness: 0.0 });
+      const cone1 = new THREE.Mesh(new THREE.ConeGeometry(foliageR, foliageH, 7), foliageMat);
+      cone1.position.set(tx3, trunkH + foliageH * 0.5, tz3);
+      cone1.castShadow = true;
+      scene.add(cone1);
+      const cone2 = new THREE.Mesh(new THREE.ConeGeometry(foliageR * 0.72, foliageH * 0.72, 7), foliageMat);
+      cone2.position.set(tx3, trunkH + foliageH * 0.88, tz3);
+      cone2.castShadow = true;
+      scene.add(cone2);
+    });
+
+    // ── GLBキャラクターコマ（Kenney Mini Characters） ────────────
+    // プレイヤーごとに異なるキャラクターモデルを使用
+    const PIECE_COLORS_3D = [0x3ecfcc, 0xf7c830, 0xe86050, 0x9060d0];
+    const CHAR_GLBS = [
+      '/assets/chars/male-a.glb',
+      '/assets/chars/female-a.glb',
+      '/assets/chars/male-b.glb',
+      '/assets/chars/female-b.glb',
+    ];
+    const pieces = {};
+
+    // GLBキャラクターからコマGroupを構築
+    function buildGLBPieceGroup(charScene, player, i) {
+      const group = new THREE.Group();
+      const pieceColor = PIECE_COLORS_3D[i % PIECE_COLORS_3D.length];
+      const threeColor = new THREE.Color(pieceColor);
+      const isCurrent = player.id === currentPlayerIdRef.current;
+
+      // ── 落ち影（最下層）
+      const shadowMesh = new THREE.Mesh(
+        new THREE.CircleGeometry(0.50, 20),
+        new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.32, depthWrite: false })
+      );
+      shadowMesh.rotation.x = -Math.PI / 2;
+      shadowMesh.position.y = 0.001;
+      group.add(shadowMesh);
+
+      // ── カラープラットフォーム台座（大きめ・上から見て目立つ）
+      const platGeo = new THREE.CylinderGeometry(0.52, 0.52, 0.14, 24);
+      const platMat = new THREE.MeshStandardMaterial({
+        color: threeColor.clone(), emissive: threeColor.clone(),
+        emissiveIntensity: 1.2, roughness: 0.15, metalness: 0.50,
+      });
+      const platform = new THREE.Mesh(platGeo, platMat);
+      platform.position.y = 0.07;
+      platform.castShadow = true;
+      group.add(platform);
+
+      // ── 台座の発光リング（縁取り）
+      const ringGeo = new THREE.TorusGeometry(0.55, 0.07, 8, 32);
+      const ringMat = new THREE.MeshStandardMaterial({
+        color: 0xffffff, emissive: threeColor.clone(),
+        emissiveIntensity: 1.6, roughness: 0.06, metalness: 0.7,
+      });
+      const ring = new THREE.Mesh(ringGeo, ringMat);
+      ring.rotation.x = -Math.PI / 2;
+      ring.position.y = 0.15;
+      group.add(ring);
+
+      // ── Kenneyキャラクター本体（台座の上に立つ）
+      const charClone = SkeletonUtils ? SkeletonUtils.clone(charScene) : charScene.clone(true);
+      charClone.scale.set(0.78, 0.78, 0.78);
+      charClone.position.y = 0.14;
+      charClone.rotation.y = Math.PI;
+
+      // プレイヤーカラーから服・肌のバリエーションを生成
+      const bodyColor  = threeColor.clone();                                        // メインカラー（服）
+      const lightColor = threeColor.clone().lerp(new THREE.Color(0xffffff), 0.50); // 明るいアクセント
+      const skinColor  = new THREE.Color(0xf5cba7);                                // 肌色（顔・手）
+
+      let meshIdx = 0;
+      charClone.traverse(child => {
+        if (child.isMesh) {
+          child.castShadow = true;
+          child.receiveShadow = true;
+          if (child.material) {
+            child.material = child.material.clone();
+            // メッシュ順で色分け：0番目=服(メインカラー)、1番目=肌、2番目=明るいアクセント、以降繰り返し
+            if (meshIdx % 3 === 0) {
+              child.material.color = bodyColor.clone();
+              child.material.emissive = bodyColor.clone();
+              child.material.emissiveIntensity = 0.30;
+            } else if (meshIdx % 3 === 1) {
+              child.material.color = skinColor.clone();
+              child.material.emissive = new THREE.Color(0x3a1a08);
+              child.material.emissiveIntensity = 0.15;
+            } else {
+              child.material.color = lightColor.clone();
+              child.material.emissive = lightColor.clone();
+              child.material.emissiveIntensity = 0.20;
+            }
+            child.material.roughness = 0.55;
+            child.material.metalness = 0.05;
+            meshIdx++;
+          }
+        }
+      });
+      group.add(charClone);
+
+      // ── 発光ビーコンポール（遠くからでも目立つ縦ライン・フォグ無効）
+      const poleH = 2.4;
+      const poleMat = new THREE.MeshStandardMaterial({
+        color: threeColor.clone(), emissive: threeColor.clone(),
+        emissiveIntensity: 2.5, roughness: 0.05, metalness: 0.5,
+        transparent: true, opacity: 0.90, fog: false,
+      });
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, poleH, 8), poleMat);
+      pole.position.y = 0.14 + poleH / 2 + 1.40;
+      group.add(pole);
+
+      // ── ポール頂点の光球（遠景でも光点として見える・フォグ無効）
+      const ballMat = new THREE.MeshStandardMaterial({
+        color: 0xffffff, emissive: threeColor.clone(),
+        emissiveIntensity: 3.5, roughness: 0.02, metalness: 0.7,
+        fog: false,
+      });
+      const ball = new THREE.Mesh(new THREE.SphereGeometry(0.30, 14, 14), ballMat);
+      ball.position.y = 0.14 + poleH + 1.40 + 0.30;
+      group.add(ball);
+
+      // ── 名前ラベル Sprite
+      const labelSprite = makePieceLabelSprite(player.name, pieceColor, isCurrent);
+      labelSprite.position.set(0, 0.14 + poleH + 1.35 + 0.65, 0);
+      group.add(labelSprite);
+
+      // 初期位置
+      const coord = SQUARE_COORDS.find(c => c.id === player.position);
+      if (coord) {
+        const { x, z } = squareTo3D(coord);
+        const angle = (i / Math.max(players.length, 1)) * Math.PI * 2;
+        const r = players.length > 1 ? 0.42 : 0;
+        group.position.set(x + Math.cos(angle) * r, 0.28, z + Math.sin(angle) * r);
+      }
+      group.userData.isHopping = false;
+      group.userData.idx = i;
+      group.userData.labelSprite = labelSprite;
+      group.userData.pieceColor = pieceColor;
+      group.userData.playerName = player.name;
+      group.userData.playerId = player.id;
+      group.userData.ringMat = ringMat;
+      group.userData.platMat = platMat;
+      group.userData.poleMat = poleMat;
+      group.userData.ballMat = ballMat;
+      scene.add(group);
+      pieces[player.id] = { group, idx: i };
+      prevPositionsRef.current[player.id] = player.position;
+    }
+
+    // フォールバック（GLBロード失敗時の旧ジオメトリコマ）
+    function buildFallbackPiece(player, i) {
+      const group = new THREE.Group();
+      const pieceColor = PIECE_COLORS_3D[i % PIECE_COLORS_3D.length];
+      const pieceMat = new THREE.MeshStandardMaterial({ color: pieceColor, roughness: 0.45, metalness: 0.12 });
+      const skinMat  = new THREE.MeshStandardMaterial({ color: 0xfcd9b4, roughness: 0.65, metalness: 0.0 });
+      const shadowMesh = new THREE.Mesh(
+        new THREE.CircleGeometry(0.22, 16),
+        new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.30, depthWrite: false })
+      );
+      shadowMesh.rotation.x = -Math.PI / 2; shadowMesh.position.y = 0.005;
+      group.add(shadowMesh);
+      [-0.10, 0.10].forEach(xOff => {
+        const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.30, 8), pieceMat);
+        leg.position.set(xOff, 0.15, 0); leg.castShadow = true; group.add(leg);
+      });
+      const bodyMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.20, 0.40, 16), pieceMat);
+      bodyMesh.position.y = 0.50; bodyMesh.castShadow = true; group.add(bodyMesh);
+      const headMesh = new THREE.Mesh(new THREE.SphereGeometry(0.25, 16, 16), skinMat);
+      headMesh.position.y = 0.88; headMesh.castShadow = true; group.add(headMesh);
+      const isCurrent = player.id === currentPlayerIdRef.current;
+      const labelSprite = makePieceLabelSprite(player.name, pieceColor, isCurrent);
+      labelSprite.position.set(0, 1.62, 0); group.add(labelSprite);
+      const coord = SQUARE_COORDS.find(c => c.id === player.position);
+      if (coord) {
+        const { x, z } = squareTo3D(coord);
+        const angle = (i / Math.max(players.length, 1)) * Math.PI * 2;
+        const r = players.length > 1 ? 0.32 : 0;
+        group.position.set(x + Math.cos(angle) * r, 0.28, z + Math.sin(angle) * r);
+      }
+      group.userData.isHopping = false; group.userData.idx = i;
+      group.userData.labelSprite = labelSprite; group.userData.pieceColor = pieceColor;
+      group.userData.playerName = player.name; group.userData.playerId = player.id;
+      scene.add(group);
+      pieces[player.id] = { group, idx: i };
+      prevPositionsRef.current[player.id] = player.position;
+    }
+
+    // SkeletonUtils（skinned mesh対応クローン、なければ通常clone）
+    const SkeletonUtils = THREE.SkeletonUtils || null;
+
+    // 各プレイヤーのGLBを非同期ロード（並行）
+    players.forEach((player, i) => {
+      const glbPath = CHAR_GLBS[i % CHAR_GLBS.length];
+      const loader = new THREE.GLTFLoader();
+      loader.load(
+        glbPath,
+        (gltf) => { buildGLBPieceGroup(gltf.scene, player, i); },
+        undefined,
+        (err) => {
+          console.warn('GLB load failed, using fallback:', err);
+          buildFallbackPiece(player, i);
+        }
+      );
+    });
+
+    // ── 現在プレイヤー表示：脈動リング ────────────────────────
+    const indicatorRingMat = new THREE.MeshBasicMaterial({
+      color: 0xffffff, transparent: true, opacity: 0.85,
+    });
+    const indicatorRing = new THREE.Mesh(
+      new THREE.TorusGeometry(0.52, 0.07, 8, 40),
+      indicatorRingMat
+    );
+    indicatorRing.rotation.x = -Math.PI / 2;
+    indicatorRing.position.y = 0.06;
+    scene.add(indicatorRing);
+
+    // ── カメラアニメーション設定 ─────────────────────────────
+    const cameraAnim = {
+      active: false,
+      targetPos: new THREE.Vector3(0, 30, 34),
+      targetLookAt: new THREE.Vector3(0, 0, -1),
+      speed: 0.038,
+    };
+
+    // ── アニメーションループ ──────────────────────────────────
+    let frameId;
+    function animate() {
+      frameId = requestAnimationFrame(animate);
+
+      // カメラスムーズフォーカス（lerp）
+      if (cameraAnim.active) {
+        camera.position.lerp(cameraAnim.targetPos, cameraAnim.speed);
+        controls.target.lerp(cameraAnim.targetLookAt, cameraAnim.speed);
+        if (camera.position.distanceTo(cameraAnim.targetPos) < 0.18) {
+          cameraAnim.active = false;
+        }
+      }
+      controls.update();
+
+      const t = Date.now() * 0.0022;
+
+      // コマのふわふわ待機アニメ＋台座リング脈動
+      Object.values(pieces).forEach(({ group, idx }) => {
+        if (!group.userData.isHopping) {
+          group.position.y = 0.28 + Math.sin(t + idx * 1.4) * 0.09;
+          group.rotation.y += 0.008;
+        }
+        // 台座・ビーコン全体の脈動アニメ
+        const pulse = 0.5 + Math.sin(Date.now() * 0.005 + idx * 2.1) * 0.5;
+        if (group.userData.platMat) group.userData.platMat.emissiveIntensity = 0.8 + pulse * 0.6;
+        if (group.userData.ringMat) group.userData.ringMat.emissiveIntensity = 1.2 + pulse * 0.8;
+        if (group.userData.poleMat) group.userData.poleMat.emissiveIntensity = 1.4 + pulse * 1.0;
+        if (group.userData.ballMat) group.userData.ballMat.emissiveIntensity = 2.0 + pulse * 1.5;
+      });
+
+      // 現在プレイヤーの脈動リング更新
+      const curId = currentPlayerIdRef.current;
+      const curPiece = curId ? pieces[curId] : null;
+      if (curPiece) {
+        indicatorRing.position.x = curPiece.group.position.x;
+        indicatorRing.position.z = curPiece.group.position.z;
+        const pulse = 1.0 + Math.sin(Date.now() * 0.005) * 0.18;
+        indicatorRing.scale.set(pulse, pulse, pulse);
+        indicatorRingMat.opacity = 0.65 + Math.sin(Date.now() * 0.005) * 0.3;
+        indicatorRing.visible = true;
+      } else {
+        indicatorRing.visible = false;
+      }
+
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    // リサイズ対応
+    function onResize() {
+      const W2 = mountRef.current ? mountRef.current.clientWidth : W;
+      camera.aspect = W2 / H;
+      camera.updateProjectionMatrix();
+      renderer.setSize(W2, H);
+    }
+    window.addEventListener('resize', onResize);
+
+    threeRef.current = { scene, camera, renderer, controls, pieces, squareMeshes, cameraAnim };
+
+    return () => {
+      cancelAnimationFrame(frameId);
+      window.removeEventListener('resize', onResize);
+      if (camTimerRef.current) clearTimeout(camTimerRef.current);
+      controls.dispose();
+      renderer.dispose();
+      scene.clear();
+      if (mountRef.current && renderer.domElement.parentNode === mountRef.current) {
+        mountRef.current.removeChild(renderer.domElement);
+      }
+    };
+  }, []);
+
+  // ── プレイヤー位置更新 → コマをホップ移動 ───────────────────
+  useEffect(() => {
+    if (!threeRef.current) return;
+    const { pieces } = threeRef.current;
+    players.forEach((player, i) => {
+      const prev = prevPositionsRef.current[player.id];
+      if (prev === player.position) return;
+      prevPositionsRef.current[player.id] = player.position;
+      const pieceData = pieces[player.id];
+      if (!pieceData) return;
+      const coord = SQUARE_COORDS.find(c => c.id === player.position);
+      if (!coord) return;
+      const { x, z } = squareTo3D(coord);
+      const angle = (i / Math.max(players.length, 1)) * Math.PI * 2;
+      const r = players.length > 1 ? 0.32 : 0;
+      animatePieceHop(pieceData.group, x + Math.cos(angle) * r, z + Math.sin(angle) * r, 680);
+    });
+  }, [players]);
+
+  // ── 現在マスの発光ハイライト（topMat.emissive を更新） ────────
+  useEffect(() => {
+    if (!threeRef.current) return;
+    const { squareMeshes } = threeRef.current;
+    Object.entries(squareMeshes).forEach(([, { topMat }]) => {
+      topMat.emissive = new THREE.Color(0x000000);
+      topMat.emissiveIntensity = 0;
+    });
+    const cur = squareMeshes[currentPlayerPos];
+    if (cur) {
+      cur.topMat.emissive = new THREE.Color(0x44ddcc);
+      cur.topMat.emissiveIntensity = 0.45;
+    }
+  }, [currentPlayerPos]);
+
+  // ── カメラフロー統合: ターン変更 or 移動を判定して制御 ──────────
+  useEffect(() => {
+    currentPlayerIdRef.current = currentPlayerId;
+    if (!threeRef.current || currentPlayerId == null) return;
+    const { pieces, cameraAnim } = threeRef.current;
+
+    const turnChanged = prevPlayerIdRef.current !== currentPlayerId;
+    prevPlayerIdRef.current = currentPlayerId;
+
+    // 進行中のカメラタイマーをキャンセル
+    if (camTimerRef.current) clearTimeout(camTimerRef.current);
+
+    if (turnChanged) {
+      // ── ターン変更: ラベル更新 ＋ 次プレイヤーへ中距離フォーカス ──
+      Object.values(pieces).forEach(({ group }) => {
+        const isCur = group.userData.playerId === currentPlayerId;
+        const old = group.userData.labelSprite;
+        if (old) group.remove(old);
+        const next = makePieceLabelSprite(
+          group.userData.playerName, group.userData.pieceColor, isCur
+        );
+        next.position.set(0, 1.62, 0);
+        group.add(next);
+        group.userData.labelSprite = next;
+      });
+
+      const pieceData = pieces[currentPlayerId];
+      if (!pieceData) return;
+      const px = pieceData.group.position.x;
+      const pz = pieceData.group.position.z;
+      // 中距離・ゆっくり（全体が見える）
+      cameraAnim.speed = 0.030;
+      cameraAnim.targetPos.set(px, 14, pz + 13);
+      cameraAnim.targetLookAt.set(px, 0, pz);
+      cameraAnim.active = true;
+
+    } else {
+      // ── 移動: ホップ開始から 300ms 後に移動先へクローズアップ ──
+      camTimerRef.current = setTimeout(() => {
+        if (!threeRef.current) return;
+        const coord = SQUARE_COORDS.find(c => c.id === currentPlayerPos);
+        if (!coord) return;
+        const { x, z } = squareTo3D(coord);
+        // 近距離・速め（ドラマチックなズームイン）
+        threeRef.current.cameraAnim.speed = 0.060;
+        threeRef.current.cameraAnim.targetPos.set(x, 7, z + 8);
+        threeRef.current.cameraAnim.targetLookAt.set(x, 0.2, z);
+        threeRef.current.cameraAnim.active = true;
+      }, 300);
+    }
+  }, [currentPlayerId, currentPlayerPos]);
+
+  return (
+    <div
+      ref={mountRef}
+      style={{
+        width: 860, height: 560,
+        borderRadius: 18, overflow: 'hidden',
+        border: '2px solid #a8c8d8',
+        flexShrink: 0, background: '#c9e8ff',
+      }}
+    />
+  );
+}
+
+function Board({ players, currentPlayerPos }) {
+  const routePath = useMemo(() => buildRoutePath(), []);
+
+  return (
+    <div style={{ position: 'relative', width: 860, height: 780, background: '#e8f5e0', borderRadius: 18, border: '2px solid #b8d4a8', overflow: 'hidden', flexShrink: 0 }}>
+
+      {/* === Layer 0: 背景 SVG === */}
+      <svg viewBox="0 0 860 780" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }} xmlns="http://www.w3.org/2000/svg" shapeRendering="crispEdges">
+        <defs>
+          <filter id="mapTexture" x="0" y="0" width="100%" height="100%">
+            <feTurbulence type="fractalNoise" baseFrequency="0.6" numOctaves="4" stitchTiles="stitch" result="noise" />
+            <feColorMatrix type="saturate" values="0" in="noise" result="grayNoise" />
+            <feBlend in="SourceGraphic" in2="grayNoise" mode="multiply" />
+          </filter>
+          <filter id="pathGlow" x="-10%" y="-10%" width="120%" height="120%">
+            <feGaussianBlur stdDeviation="1.5" result="b" />
+            <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
+          </filter>
+        </defs>
+
+        {/* === 道路 === */}
+        <g stroke="#f0e6c8" fill="none" strokeLinecap="square">
+          {/* 横道路 */}
+          <rect x="0" y="60" width="860" height="18" fill="#f0e6c8" /><rect x="0" y="60" width="860" height="2" fill="#e8dcc0" /><rect x="0" y="76" width="860" height="2" fill="#d8ccb0" />
+          <rect x="0" y="195" width="860" height="18" fill="#f0e6c8" /><rect x="0" y="195" width="860" height="2" fill="#e8dcc0" /><rect x="0" y="211" width="860" height="2" fill="#d8ccb0" />
+          <rect x="0" y="470" width="860" height="18" fill="#f0e6c8" /><rect x="0" y="470" width="860" height="2" fill="#e8dcc0" /><rect x="0" y="486" width="860" height="2" fill="#d8ccb0" />
+          <rect x="0" y="740" width="860" height="20" fill="#f0e6c8" /><rect x="0" y="740" width="860" height="2" fill="#e8dcc0" /><rect x="0" y="758" width="860" height="2" fill="#d8ccb0" />
+          {/* 縦道路 */}
+          <rect x="30" y="0" width="18" height="780" fill="#f0e6c8" /><rect x="30" y="0" width="2" height="780" fill="#e8dcc0" /><rect x="46" y="0" width="2" height="780" fill="#d8ccb0" />
+          <rect x="408" y="0" width="18" height="780" fill="#f0e6c8" /><rect x="408" y="0" width="2" height="780" fill="#e8dcc0" /><rect x="424" y="0" width="2" height="780" fill="#d8ccb0" />
+          <rect x="790" y="0" width="18" height="780" fill="#f0e6c8" /><rect x="790" y="0" width="2" height="780" fill="#e8dcc0" /><rect x="806" y="0" width="2" height="780" fill="#d8ccb0" />
+          {/* センターライン */}
+          <line x1="0" y1="69" x2="860" y2="69" stroke="#e0d4b8" strokeWidth="1" strokeDasharray="8 6" />
+          <line x1="0" y1="479" x2="860" y2="479" stroke="#e0d4b8" strokeWidth="1" strokeDasharray="8 6" />
+          <line x1="39" y1="0" x2="39" y2="780" stroke="#e0d4b8" strokeWidth="1" strokeDasharray="8 6" />
+          <line x1="417" y1="0" x2="417" y2="780" stroke="#e0d4b8" strokeWidth="1" strokeDasharray="8 6" />
+        </g>
+
+        {/* === 建物（アイソメ風） === */}
+
+        {/* 図書館 (大型 2階建) */}
+        <g transform="translate(100,310)">
+          <rect x="4" y="4" width="120" height="52" fill="rgba(0,0,0,0.07)" rx="2" />
+          <polygon points="120,0 128,-8 128,44 120,52" fill="#9a9faa" />
+          <rect width="120" height="52" fill="#c8cdd4" rx="2" />
+          <polygon points="0,0 120,0 128,-8 8,-8" fill="#dce0e6" />
+          {[0,1].map(r => [0,1,2,3,4,5].map(c =>
+            <rect key={`lib${r}${c}`} x={8+c*18} y={8+r*20} width="10" height="8" fill="#8ab4d8" rx="1" />
+          ))}
+          <rect x="50" y="38" width="14" height="14" fill="#7a6850" rx="1" />
+          <rect x="30" y="-16" width="60" height="8" fill="#b0b8c8" rx="1" />
+          <text x="60" y="68" textAnchor="middle" fontSize="9" fill="#556" fontWeight="600">図書館</text>
+        </g>
+
+        {/* 食堂 (煙突付き) */}
+        <g transform="translate(590,580)">
+          <rect x="4" y="4" width="100" height="44" fill="rgba(0,0,0,0.07)" rx="2" />
+          <polygon points="100,0 108,-8 108,36 100,44" fill="#929ab0" />
+          <rect width="100" height="44" fill="#bcc2d0" rx="2" />
+          <polygon points="0,0 100,0 108,-8 8,-8" fill="#d4d8e2" />
+          {[0,1].map(r => [0,1,2,3].map(c =>
+            <rect key={`caf${r}${c}`} x={10+c*22} y={7+r*18} width="10" height="8" fill="#8ab4d8" rx="1" />
+          ))}
+          <rect x="40" y="30" width="14" height="14" fill="#7a6850" rx="1" />
+          {/* 煙突+湯気 */}
+          <rect x="85" y="-18" width="6" height="12" fill="#9a9faa" />
+          <rect x="84" y="-24" width="4" height="4" fill="#ccc" opacity="0.5" rx="2" />
+          <rect x="86" y="-30" width="3" height="3" fill="#ccc" opacity="0.3" rx="1.5" />
+          <rect x="85" y="-35" width="2" height="2" fill="#ccc" opacity="0.15" rx="1" />
+          <text x="50" y="58" textAnchor="middle" fontSize="9" fill="#556" fontWeight="600">食堂</text>
+        </g>
+
+        {/* 講義棟A (3階建て) */}
+        <g transform="translate(480,155)">
+          <rect x="4" y="4" width="130" height="68" fill="rgba(0,0,0,0.08)" rx="2" />
+          <polygon points="130,0 138,-8 138,60 130,68" fill="#8a909c" />
+          <rect width="130" height="68" fill="#b0b8c8" rx="2" />
+          <polygon points="0,0 130,0 138,-8 8,-8" fill="#ccd0dc" />
+          {[0,1,2].map(r => [0,1,2,3,4,5,6].map(c =>
+            <rect key={`la${r}${c}`} x={6+c*18} y={6+r*20} width="10" height="8" fill="#8ab4d8" rx="1" />
+          ))}
+          <rect x="55" y="54" width="16" height="14" fill="#7a6850" rx="1" />
+          <text x="65" y="84" textAnchor="middle" fontSize="9" fill="#556" fontWeight="600">講義棟A</text>
+        </g>
+
+        {/* 講義棟B (2階建て) */}
+        <g transform="translate(210,580)">
+          <rect x="4" y="4" width="110" height="48" fill="rgba(0,0,0,0.07)" rx="2" />
+          <polygon points="110,0 118,-8 118,40 110,48" fill="#9a9faa" />
+          <rect width="110" height="48" fill="#c8cdd4" rx="2" />
+          <polygon points="0,0 110,0 118,-8 8,-8" fill="#dce0e6" />
+          {[0,1].map(r => [0,1,2,3,4,5].map(c =>
+            <rect key={`lb${r}${c}`} x={6+c*17} y={7+r*18} width="10" height="8" fill="#8ab4d8" rx="1" />
+          ))}
+          <rect x="45" y="34" width="14" height="14" fill="#7a6850" rx="1" />
+          <text x="55" y="62" textAnchor="middle" fontSize="9" fill="#556" fontWeight="600">講義棟B</text>
+        </g>
+
+        {/* 体育館 (三角屋根) */}
+        <g transform="translate(680,310)">
+          <rect x="4" y="4" width="110" height="56" fill="rgba(0,0,0,0.07)" rx="2" />
+          <polygon points="110,0 118,-8 118,48 110,56" fill="#9a9faa" />
+          <rect width="110" height="56" fill="#c8cdd4" rx="2" />
+          <polygon points="0,0 55,-22 110,0 118,-8 63,-30 -8,-8" fill="#dce0e6" />
+          <rect x="12" y="10" width="20" height="18" fill="#8ab4d8" rx="1" />
+          <rect x="44" y="10" width="20" height="18" fill="#8ab4d8" rx="1" />
+          <rect x="76" y="10" width="20" height="18" fill="#8ab4d8" rx="1" />
+          <rect x="40" y="36" width="12" height="20" fill="#7a6850" rx="1" />
+          <rect x="52" y="36" width="12" height="20" fill="#7a6850" rx="1" />
+          <text x="55" y="70" textAnchor="middle" fontSize="9" fill="#556" fontWeight="600">体育館</text>
+        </g>
+
+        {/* 工学部棟 (屋上ダクト) */}
+        <g transform="translate(30,580)">
+          <rect x="4" y="4" width="90" height="44" fill="rgba(0,0,0,0.07)" rx="2" />
+          <polygon points="90,0 98,-8 98,36 90,44" fill="#929ab0" />
+          <rect width="90" height="44" fill="#bcc2d0" rx="2" />
+          <polygon points="0,0 90,0 98,-8 8,-8" fill="#d4d8e2" />
+          {[0,1].map(r => [0,1,2,3].map(c =>
+            <rect key={`eng${r}${c}`} x={8+c*20} y={7+r*18} width="10" height="8" fill="#8ab4d8" rx="1" />
+          ))}
+          <rect x="35" y="30" width="14" height="14" fill="#7a6850" rx="1" />
+          <rect x="10" y="-14" width="12" height="6" fill="#a0a5aa" rx="1" />
+          <rect x="30" y="-12" width="8" height="4" fill="#a0a5aa" rx="1" />
+          <text x="45" y="58" textAnchor="middle" fontSize="9" fill="#556" fontWeight="600">工学部棟</text>
+        </g>
+
+        {/* 研究棟 (パラボラ) */}
+        <g transform="translate(680,155)">
+          <rect x="4" y="4" width="100" height="48" fill="rgba(0,0,0,0.07)" rx="2" />
+          <polygon points="100,0 108,-8 108,40 100,48" fill="#9a9faa" />
+          <rect width="100" height="48" fill="#c8cdd4" rx="2" />
+          <polygon points="0,0 100,0 108,-8 8,-8" fill="#dce0e6" />
+          {[0,1].map(r => [0,1,2,3,4].map(c =>
+            <rect key={`res${r}${c}`} x={6+c*19} y={7+r*18} width="10" height="8" fill="#8ab4d8" rx="1" />
+          ))}
+          <rect x="40" y="34" width="14" height="14" fill="#7a6850" rx="1" />
+          <circle cx="85" cy="-14" r="8" fill="none" stroke="#a0a5aa" strokeWidth="2" />
+          <line x1="85" y1="-14" x2="85" y2="-6" stroke="#a0a5aa" strokeWidth="1.5" />
+          <text x="50" y="62" textAnchor="middle" fontSize="9" fill="#556" fontWeight="600">研究棟</text>
+        </g>
+
+        {/* 部室棟 (小型) */}
+        <g transform="translate(380,580)">
+          <rect x="3" y="3" width="70" height="36" fill="rgba(0,0,0,0.07)" rx="2" />
+          <polygon points="70,0 76,-6 76,30 70,36" fill="#9a9faa" />
+          <rect width="70" height="36" fill="#c8cdd4" rx="2" />
+          <polygon points="0,0 70,0 76,-6 6,-6" fill="#dce0e6" />
+          {[0,1,2].map(c =>
+            <rect key={`club${c}`} x={8+c*22} y={7} width="10" height="8" fill="#8ab4d8" rx="1" />
+          )}
+          <rect x="28" y="22" width="12" height="14" fill="#7a6850" rx="1" />
+          <text x="35" y="52" textAnchor="middle" fontSize="9" fill="#556" fontWeight="600">部室棟</text>
+        </g>
+
+        {/* 正門 */}
+        <g transform="translate(20,730)">
+          <rect x="0" y="0" width="10" height="28" fill="#b0b8c8" />
+          <polygon points="10,0 16,-6 16,22 10,28" fill="#9a9faa" />
+          <rect x="0" y="-4" width="14" height="4" fill="#dce0e6" />
+          <rect x="80" y="0" width="10" height="28" fill="#b0b8c8" />
+          <polygon points="90,0 96,-6 96,22 90,28" fill="#9a9faa" />
+          <rect x="80" y="-4" width="14" height="4" fill="#dce0e6" />
+          <rect x="10" y="6" width="70" height="4" fill="#c8cdd4" />
+          <text x="45" y="44" textAnchor="middle" fontSize="9" fill="#556" fontWeight="600">正門</text>
+        </g>
+
+        {/* === 木（ドットアート風） === */}
+        {[
+          [70,370],[95,295],[155,365],[250,320],[290,360],[340,365],[420,300],
+          [465,365],[530,330],[580,360],[640,370],[700,295],[745,365],[810,330],
+          [55,175],[140,165],[250,165],[330,178],[460,100],[540,170],[620,100],
+          [760,175],[830,168],
+          [55,500],[140,490],[290,505],[380,498],[520,500],[610,505],[730,490],[810,498],
+          [55,650],[160,640],[400,645],[530,655],[670,640],[780,650],
+          [120,730],[300,738],[500,728],[660,735],[830,730]
+        ].map(([tx,ty],i) => (
+          <g key={`t${i}`}>
+            <rect x={tx-2} y={ty+3} width="4" height={6+(i%3)} fill="#6a5030" />
+            <circle cx={tx} cy={ty-2} r={8+(i%4)*1.5} fill={i%2===0?'#3a8a3a':'#4a9a4a'} />
+            <circle cx={tx-1} cy={ty-5} r={5+(i%3)} fill={i%2===0?'#5ab85a':'#58a858'} />
+          </g>
+        ))}
+
+        {/* === 池 === */}
+        <g transform="translate(430,420)">
+          <ellipse cx="0" cy="2" rx="62" ry="32" fill="#90c8e0" />
+          <ellipse cx="0" cy="0" rx="62" ry="32" fill="#a8d8ec" />
+          <rect x="-20" y="-8" width="18" height="3" fill="#c0e8f4" opacity="0.5" rx="1" />
+          <rect x="5" y="-2" width="14" height="2" fill="#c0e8f4" opacity="0.4" rx="1" />
+          <rect x="-10" y="8" width="20" height="2" fill="#c0e8f4" opacity="0.6" rx="1" />
+          <text x="0" y="42" textAnchor="middle" fontSize="8" fill="#4a7a9a">ひょうたん池</text>
+        </g>
+
+        {/* === 広場 === */}
+        <g transform="translate(155,430)">
+          <rect width="80" height="50" fill="#d8ccb0" rx="4" />
+          {[0,1,2].map(r => [0,1,2,3].map(c =>
+            <rect key={`br${r}${c}`} x={6+c*18+(r%2)*9} y={6+r*14} width="10" height="6" fill="#ccbfa0" rx="1" opacity="0.55" />
+          ))}
+          {/* ベンチ */}
+          <rect x="30" y="20" width="20" height="4" fill="#8a6a40" rx="1" />
+          <rect x="32" y="24" width="2" height="4" fill="#8a6a40" />
+          <rect x="46" y="24" width="2" height="4" fill="#8a6a40" />
+          {/* 噴水 */}
+          <circle cx="60" cy="15" r="6" fill="#a8d8ec" />
+          <rect x="58" y="10" width="4" height="2" fill="#c0e8f4" opacity="0.6" rx="1" />
+        </g>
+      </svg>
+
+      {/* === Layer 1: ルートパスSVG === */}
+      <svg viewBox="0 0 860 780" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 1 }}>
+        <defs>
+          <filter id="pathGlowF" x="-10%" y="-10%" width="120%" height="120%">
+            <feGaussianBlur stdDeviation="1.5" result="b" />
+            <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
+          </filter>
+        </defs>
+        <path d={routePath} stroke="#5a8a5a" strokeWidth="4" fill="none"
+              strokeDasharray="8 5" strokeLinecap="round" opacity="0.5"
+              filter="url(#pathGlowF)" />
+      </svg>
+
+      {/* === Layer 2: HTMLマスノード === */}
+      {SQUARE_COORDS.map(sq => {
+        const bd = BOARD[sq.id - 1];
+        const isCur = sq.id === currentPlayerPos;
+        const allHere = players.filter(p => p.position === sq.id);
+        const cls = SQ_CLASS_MAP[bd.type] || '';
+        const isLarge = bd.type === 'start' || bd.type === 'goal';
+        const sz = isLarge ? 68 : 58;
+
+        return (
+          <div key={sq.id}
+            className={`map-square ${cls} ${isCur ? 'sq-current' : ''}`}
+            style={{ left: sq.x - sz/2, top: sq.y - sz/2, width: sz, height: sz }}
+          >
+            <span style={{ fontSize: '0.38rem', fontFamily: 'Poppins,sans-serif', color: '#888', lineHeight: 1 }}>{sq.id}</span>
+            <span style={{ fontSize: '1.15rem', lineHeight: 1.1 }}>{TYPE_ICONS[bd.type]}</span>
+            {allHere.length > 0 ? (
+              <div style={{ display: 'flex', gap: 1 }}>
+                {allHere.map(p => (
+                  <svg key={p.id} viewBox="0 0 30 40" width="14" height="19" style={{ display: 'block', flexShrink: 0 }}>
+                    <use href={`#char-${p.character}`}/>
+                  </svg>
+                ))}
+              </div>
+            ) : (
+              <span style={{ fontSize: '0.42rem', fontWeight: 700, color: '#3a5a3a', lineHeight: 1, textAlign: 'center', maxWidth: 48, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {bd.title.length > 5 ? bd.title.slice(0, 4) + '…' : bd.title}
+              </span>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ============================================================
+   PLAYER CARD COMPONENT
+   ============================================================ */
+function PlayerCard({ player, isActive, compact = false }) {
+  const gpaColor = player.gpa < 2.0 ? '#f87171' : player.gpa < 2.5 ? '#fb923c' : '#4ade80';
+  const ch = CHARACTERS.find(c => c.id === player.character);
+
+  if (compact) {
+    return (
+      <div className="flex items-center gap-2 p-2 rounded-xl transition-all"
+           style={isActive
+             ? { background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.4)', boxShadow: '0 0 10px rgba(99,102,241,0.15)' }
+             : { background: 'rgba(30,41,59,0.5)', border: '1px solid rgba(51,65,85,0.3)' }}
+      >
+        <CharacterAvatar character={player.character} size="sm" />
+        <div className={`flex-1 min-w-0 ${player.finished ? 'opacity-50' : ''}`}>
+          <div className="text-xs font-semibold truncate" style={{ color: '#e2e8f0' }}>{player.name}{player.finished ? ' 🎓' : ''}</div>
+          <div className="flex gap-2 text-[10px]">
+            <span style={{ color: '#fbbf24' }}>💰{player.money}</span>
+            <span style={{ color: gpaColor }}>📊{player.gpa.toFixed(1)}</span>
+            <span style={{ color: '#818cf8' }}>⚡{player.sp}</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-3 rounded-xl transition-all"
+         style={isActive
+           ? { background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.4)', boxShadow: '0 2px 12px rgba(99,102,241,0.2)' }
+           : { background: 'rgba(30,41,59,0.6)', border: '1px solid rgba(51,65,85,0.3)' }}
+    >
+      <div className={`flex items-center gap-2 mb-2 ${player.finished ? 'opacity-50' : ''}`}>
+        <CharacterAvatar character={player.character} size="md" />
+        <div>
+          <div className="font-semibold text-sm" style={{ color: '#e2e8f0' }}>{player.name}</div>
+          <div className="text-[10px]" style={{ color: '#64748b' }}>📍 マス{player.position}{player.finished ? ' 🎓ゴール済' : ''}{player.skipNextTurn ? ' ⏸️休み' : ''}</div>
+        </div>
+      </div>
+      <div className="grid grid-cols-3 gap-1.5 text-center text-xs">
+        <div className="rounded-lg p-1.5" style={{ background: 'rgba(15,23,42,0.5)' }}>
+          <div className="font-bold" style={{ color: '#fbbf24' }}>{player.money}万</div>
+          <div className="text-[10px]" style={{ color: '#64748b' }}>💰 資金</div>
+        </div>
+        <div className="rounded-lg p-1.5" style={{ background: 'rgba(15,23,42,0.5)' }}>
+          <div className="font-bold" style={{ color: gpaColor }}>{player.gpa.toFixed(1)}</div>
+          <div className="text-[10px]" style={{ color: '#64748b' }}>📊 GPA</div>
+        </div>
+        <div className="rounded-lg p-1.5" style={{ background: 'rgba(15,23,42,0.5)' }}>
+          <div className="font-bold" style={{ color: '#818cf8' }}>{player.sp}</div>
+          <div className="text-[10px]" style={{ color: '#64748b' }}>⚡ SP</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   QUARTER DISPLAY
+   ============================================================ */
+function QuarterDisplay({ currentQuarter }) {
+  return (
+    <div className="flex gap-1.5 justify-center">
+      {QUARTER_INFO.map((q, i) => (
+        <div key={i} className="px-3 py-1 rounded-full text-xs font-semibold transition-all"
+             style={i + 1 === currentQuarter
+               ? { background: 'rgba(99,102,241,0.2)', color: '#a5b4fc', border: '1px solid rgba(99,102,241,0.4)' }
+               : { background: 'rgba(30,41,59,0.4)', color: '#475569', border: '1px solid transparent' }}>
+          {q.emoji} {q.label}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ============================================================
+   TITLE SCREEN
+   ============================================================ */
+function TitleScreen({ onStartLocal, onStartMulti }) {
+  const [numPlayers, setNumPlayers] = useState(2);
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center p-6"
+         style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 40%, #1a1f3a 70%, #0f172a 100%)' }}>
+      {/* Decorative background elements */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none" style={{ opacity: 0.04 }}>
+        <div className="absolute top-[10%] left-[5%] text-8xl" style={{ animation: 'float 6s ease-in-out infinite' }}>🎓</div>
+        <div className="absolute top-[20%] right-[10%] text-6xl" style={{ animation: 'float 8s ease-in-out infinite 1s' }}>📖</div>
+        <div className="absolute bottom-[20%] left-[15%] text-7xl" style={{ animation: 'float 7s ease-in-out infinite 2s' }}>💡</div>
+        <div className="absolute bottom-[30%] right-[8%] text-5xl" style={{ animation: 'float 5s ease-in-out infinite 0.5s' }}>🏫</div>
+      </div>
+
+      <div className="text-center space-y-8 max-w-md w-full relative z-10">
+        {/* Hero */}
+        <div className="space-y-3">
+          <div className="inline-block px-4 py-1 rounded-full text-[10px] font-semibold tracking-widest uppercase"
+               style={{ background: 'rgba(99,102,241,0.15)', color: '#a5b4fc', border: '1px solid rgba(99,102,241,0.3)' }}>
+            ZEN University × Startup
+          </div>
+          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight animate-title-glow"
+              style={{ background: 'linear-gradient(135deg, #e0e7ff 0%, #a5b4fc 40%, #818cf8 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+            起業人生ゲーム
+          </h1>
+          <p className="text-sm" style={{ color: '#94a3b8' }}>大学生活と起業を両立できるか？</p>
+        </div>
+
+        {/* Mode A */}
+        <div className="rounded-2xl p-6 space-y-5"
+             style={{ background: 'rgba(30,41,59,0.7)', backdropFilter: 'blur(12px)', border: '1px solid rgba(99,102,241,0.15)' }}>
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="w-6 h-6 rounded-md flex items-center justify-center text-xs" style={{ background: 'rgba(99,102,241,0.2)', color: '#a5b4fc' }}>🎮</span>
+              <span className="text-sm font-semibold" style={{ color: '#e2e8f0' }}>1台パス＆プレイ</span>
+            </div>
+            <p className="text-[11px] ml-8 mb-4" style={{ color: '#64748b' }}>1台のデバイスを順番に回して遊ぶ</p>
+            <p className="text-xs font-semibold mb-3" style={{ color: '#94a3b8' }}>プレイヤー人数</p>
+            <div className="flex gap-3 justify-center">
+              {[2, 3, 4].map(n => (
+                <button
+                  key={n}
+                  onClick={() => setNumPlayers(n)}
+                  className="w-14 h-14 rounded-xl text-xl font-bold transition-all active:scale-95"
+                  style={numPlayers === n
+                    ? { background: 'linear-gradient(135deg, #4f46e5, #6366f1)', color: '#fff', boxShadow: '0 4px 15px rgba(99,102,241,0.4)' }
+                    : { background: 'rgba(51,65,85,0.5)', color: '#94a3b8', border: '1px solid rgba(71,85,105,0.5)' }}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+          </div>
+          <button
+            onClick={() => onStartLocal(numPlayers)}
+            className="w-full py-3.5 font-bold rounded-xl text-base active:scale-[0.98] transition-all"
+            style={{ background: 'linear-gradient(135deg, #4f46e5, #7c3aed)', color: '#fff', boxShadow: '0 4px 15px rgba(79,70,229,0.4)' }}
+          >
+            ゲーム設定へ →
+          </button>
+        </div>
+
+        {/* Mode B */}
+        <div className="rounded-2xl p-5 space-y-3"
+             style={{ background: 'rgba(30,41,59,0.5)', backdropFilter: 'blur(12px)', border: '1px solid rgba(99,102,241,0.1)' }}>
+          <div className="flex items-center gap-2">
+            <span className="w-6 h-6 rounded-md flex items-center justify-center text-xs" style={{ background: 'rgba(139,92,246,0.2)', color: '#c4b5fd' }}>📱</span>
+            <span className="text-sm font-semibold" style={{ color: '#e2e8f0' }}>マルチデバイスモード</span>
+          </div>
+          <p className="text-[11px] ml-8" style={{ color: '#64748b' }}>大画面にボードを映し、各自のスマホで操作</p>
+          {isFirebaseConfigured ? (
+            <div className="flex gap-2 pt-1">
+              <button
+                onClick={() => onStartMulti('host')}
+                className="flex-1 py-2.5 font-semibold rounded-xl text-sm active:scale-[0.98] transition-all"
+                style={{ background: 'rgba(99,102,241,0.15)', color: '#a5b4fc', border: '1px solid rgba(99,102,241,0.3)' }}
+              >
+                📺 ホスト画面
+              </button>
+              <button
+                onClick={() => onStartMulti('controller')}
+                className="flex-1 py-2.5 font-semibold rounded-xl text-sm active:scale-[0.98] transition-all"
+                style={{ background: 'rgba(139,92,246,0.15)', color: '#c4b5fd', border: '1px solid rgba(139,92,246,0.3)' }}
+              >
+                📱 プレイヤー参加
+              </button>
+            </div>
+          ) : (
+            <div className="text-center py-2">
+              <p className="text-xs" style={{ color: '#64748b' }}>Firebase設定が必要です</p>
+            </div>
+          )}
+        </div>
+
+        {/* Footer info */}
+        <div className="flex items-center justify-center gap-4 text-[11px] pt-2" style={{ color: '#475569' }}>
+          <span>⏱ 15〜20分</span>
+          <span className="w-px h-3" style={{ background: '#334155' }}></span>
+          <span>💰+⚡ 合計で勝負</span>
+          <span className="w-px h-3" style={{ background: '#334155' }}></span>
+          <span>GPA 2.0未満は半減</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   SETUP SCREEN
+   ============================================================ */
+function SetupScreen({ numPlayers, onStart }) {
+  const defaultNames = ['プレイヤー1', 'プレイヤー2', 'プレイヤー3', 'プレイヤー4'];
+  const [names, setNames] = useState(defaultNames.slice(0, numPlayers));
+  const [characters, setCharacters] = useState(Array(numPlayers).fill(null));
+  const [currentStep, setCurrentStep] = useState(0);
+
+  const usedChars = characters.filter(c => c !== null);
+  const availableChars = CHARACTERS.filter(c => !usedChars.includes(c.id));
+  const allSelected = characters.every(c => c !== null);
+
+  function selectCharacter(charId) {
+    const newChars = [...characters];
+    newChars[currentStep] = charId;
+    setCharacters(newChars);
+    if (currentStep < numPlayers - 1) {
+      setCurrentStep(currentStep + 1);
+    }
+  }
+
+  function handleStart() {
+    if (!allSelected) return;
+    const players = names.map((name, i) => ({
+      id: i,
+      name: name || defaultNames[i],
+      character: characters[i],
+      money: 50,
+      gpa: 3.0,
+      sp: 0,
+      position: 1,
+      finished: false,
+      skipNextTurn: false,
+    }));
+    onStart(players);
+  }
+
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center p-4"
+         style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 40%, #1a1f3a 70%, #0f172a 100%)' }}>
+      <div className="max-w-md w-full space-y-5">
+        <div className="text-center space-y-1">
+          <h2 className="text-xl font-bold" style={{ color: '#e2e8f0' }}>プレイヤー設定</h2>
+          <p className="text-xs" style={{ color: '#64748b' }}>名前とキャラクターを選んでください</p>
+        </div>
+
+        {/* Name Inputs */}
+        <div className="space-y-2">
+          {names.map((name, i) => (
+            <div key={i} className="flex items-center gap-3 p-2.5 rounded-xl transition-all"
+                 style={currentStep === i
+                   ? { background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.3)' }
+                   : { background: 'rgba(30,41,59,0.5)', border: '1px solid rgba(51,65,85,0.3)' }}>
+              <div className="w-9 h-9 rounded-full overflow-hidden flex items-center justify-center text-sm font-bold flex-shrink-0"
+                   style={{ backgroundColor: characters[i] ? CHARACTERS.find(c => c.id === characters[i])?.color : 'rgba(51,65,85,0.8)', color: '#e2e8f0' }}>
+                {characters[i]
+                  ? <svg viewBox="0 0 30 40" width="28" height="37" style={{display:'block'}}><use href={`#char-${characters[i]}`}/></svg>
+                  : (i + 1)}
+              </div>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => {
+                  const n = [...names];
+                  n[i] = e.target.value;
+                  setNames(n);
+                }}
+                onFocus={() => setCurrentStep(i)}
+                placeholder={defaultNames[i]}
+                className="flex-1 px-3 py-2 rounded-lg text-sm focus:outline-none transition-colors"
+                style={{ background: 'rgba(15,23,42,0.6)', color: '#e2e8f0', border: '1px solid rgba(71,85,105,0.4)' }}
+              />
+            </div>
+          ))}
+        </div>
+
+        {/* Character Selection */}
+        <div className="rounded-2xl p-5"
+             style={{ background: 'rgba(30,41,59,0.7)', backdropFilter: 'blur(12px)', border: '1px solid rgba(99,102,241,0.1)' }}>
+          <p className="text-sm mb-4 text-center" style={{ color: '#94a3b8' }}>
+            <span className="font-bold" style={{ color: '#a5b4fc' }}>{names[currentStep] || defaultNames[currentStep]}</span> のキャラクターを選択
+          </p>
+          <div className="grid grid-cols-2 gap-3">
+            {CHARACTERS.map(ch => {
+              const isUsed = usedChars.includes(ch.id) && characters[currentStep] !== ch.id;
+              const isSelected = characters[currentStep] === ch.id;
+              const star = (n) => '★'.repeat(n) + '☆'.repeat(5 - n);
+              return (
+                <button
+                  key={ch.id}
+                  onClick={() => !isUsed && selectCharacter(ch.id)}
+                  disabled={isUsed}
+                  className="p-3 rounded-xl transition-all text-left active:scale-95"
+                  style={isSelected
+                    ? { background: 'rgba(99,102,241,0.15)', border: `2px solid ${ch.color}`, boxShadow: `0 0 16px ${ch.color}55` }
+                    : isUsed
+                    ? { background: 'rgba(15,23,42,0.4)', border: '2px solid transparent', opacity: 0.35, cursor: 'not-allowed' }
+                    : { background: 'rgba(51,65,85,0.3)', border: `2px solid rgba(71,85,105,0.3)` }}
+                >
+                  {/* Avatar + 名前 */}
+                  <div className="flex items-center gap-2 mb-2">
+                    <CharacterAvatar character={ch.id} size="md" />
+                    <div>
+                      <div className="font-bold text-sm leading-tight" style={{ color: ch.color }}>{ch.name}</div>
+                      <div className="text-[10px] leading-tight" style={{ color: '#94a3b8' }}>{ch.role}</div>
+                    </div>
+                  </div>
+                  {/* ステータス */}
+                  <div className="space-y-0.5 mb-2">
+                    {[
+                      { label: '発想', key: 'idea' },
+                      { label: '行動', key: 'action' },
+                      { label: '分析', key: 'analysis' },
+                      { label: '人脈', key: 'network' },
+                    ].map(({ label, key }) => (
+                      <div key={key} className="flex items-center gap-1">
+                        <span className="text-[9px] w-6 shrink-0" style={{ color: '#64748b' }}>{label}</span>
+                        <span className="text-[9px] tracking-tight" style={{ color: ch.color, letterSpacing: '-0.05em' }}>{star(ch.stats[key])}</span>
+                      </div>
+                    ))}
+                  </div>
+                  {/* スキル名 */}
+                  <div className="space-y-0.5">
+                    {ch.skills.map(s => (
+                      <div key={s.name} className="text-[9px] px-1.5 py-0.5 rounded"
+                           style={{ background: `${ch.color}22`, color: ch.color }}>
+                        【{s.name}】
+                      </div>
+                    ))}
+                  </div>
+                  {/* 弱点 */}
+                  {ch.weakness !== '特になし' && (
+                    <div className="text-[8px] mt-1.5 leading-tight" style={{ color: '#f87171' }}>
+                      弱点: {ch.weakness}
+                    </div>
+                  )}
+                  {isUsed && (
+                    <div className="text-[10px] text-center mt-1" style={{ color: '#475569' }}>選択済み</div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <button
+          onClick={handleStart}
+          disabled={!allSelected}
+          className="w-full py-3.5 font-bold rounded-xl text-lg active:scale-[0.98] transition-all"
+          style={allSelected
+            ? { background: 'linear-gradient(135deg, #4f46e5, #7c3aed)', color: '#fff', boxShadow: '0 4px 15px rgba(79,70,229,0.4)' }
+            : { background: 'rgba(51,65,85,0.4)', color: '#475569', cursor: 'not-allowed' }}
+        >
+          {allSelected ? 'ゲームスタート →' : 'キャラクターを全員選択してね'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   GAME ENGINE HOOK (shared by Mode A and Mode B host)
+   ============================================================ */
+function useGameEngine(initialPlayers, options = {}) {
+  const { onGameEnd, mode = 'local', roomCode = null, turnOrder = null } = options;
+
+  const [players, setPlayers] = useState(initialPlayers);
+  const [currentIdx, setCurrentIdx] = useState(0);
+  const [turnPhase, setTurnPhase] = useState('idle');
+  const [diceValue, setDiceValue] = useState(null);
+  const [rolling, setRolling] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [currentSquare, setCurrentSquare] = useState(null);
+  const [skipMessage, setSkipMessage] = useState(null);
+  const [remoteAction, setRemoteAction] = useState(null);
+  const [pendingFirebaseAction, setPendingFirebaseAction] = useState(null);
+  const rollInterval = useRef(null);
+
+  const currentPlayer = players[currentIdx];
+  const currentQuarter = Math.ceil(currentPlayer.position / 10);
+  const allFinished = players.every(p => p.finished);
+
+  // Start BGM
+  useEffect(() => {
+    SoundManager.init();
+    SoundManager.startBGM();
+    return () => SoundManager.stopBGM();
+  }, []);
+
+  // Check all finished
+  useEffect(() => {
+    if (allFinished) {
+      SoundManager.stopBGM();
+      if (mode === 'host' && roomCode) {
+        FirebaseManager.updateRoomStatus('finished');
+        FirebaseManager.updateGameState({ ...buildGameState(), finished: true });
+      }
+      setTimeout(() => onGameEnd(players), 500);
+    }
+  }, [allFinished]);
+
+  // Handle skip/finished
+  useEffect(() => {
+    if (turnPhase !== 'idle') return;
+    const p = players[currentIdx];
+    if (p.finished) {
+      advanceToNext();
+      return;
+    }
+    if (p.skipNextTurn) {
+      SoundManager.skipTurn();
+      setSkipMessage(`${p.name} は1回休み！`);
+      const newPlayers = [...players];
+      newPlayers[currentIdx] = { ...p, skipNextTurn: false };
+      setPlayers(newPlayers);
+      setTimeout(() => {
+        setSkipMessage(null);
+        advanceToNext();
+      }, 1500);
+    }
+  }, [currentIdx, turnPhase]);
+
+  // Firebase sync - write game state (debounced)
+  useEffect(() => {
+    if (mode !== 'host' || !roomCode) return;
+    const timer = setTimeout(() => {
+      FirebaseManager.updateGameState(buildGameState());
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [players, currentIdx, turnPhase, diceValue, showModal, currentSquare, skipMessage]);
+
+  // Firebase action listener
+  useEffect(() => {
+    if (mode !== 'host' || !roomCode) return;
+    const unsub = FirebaseManager.listenAction((action) => {
+      setPendingFirebaseAction(action);
+      FirebaseManager.clearAction();
+    });
+    return unsub;
+  }, [mode, roomCode]);
+
+  // Process pending Firebase action (has access to current state)
+  useEffect(() => {
+    if (!pendingFirebaseAction) return;
+    if (pendingFirebaseAction.type === 'roll' && turnPhase === 'idle' && !rolling) {
+      rollDice();
+    } else if (pendingFirebaseAction.type === 'choice' || pendingFirebaseAction.type === 'judgment') {
+      setRemoteAction(pendingFirebaseAction);
+    }
+    setPendingFirebaseAction(null);
+  }, [pendingFirebaseAction, turnPhase, rolling]);
+
+  function buildGameState() {
+    return {
+      players: players.map((p, i) => ({ ...p, uid: turnOrder ? turnOrder[i] : null })),
+      currentIdx,
+      currentPlayerUid: turnOrder ? turnOrder[currentIdx] : null,
+      phase: turnPhase,
+      diceValue,
+      currentSquareId: currentSquare?.id || null,
+      showModal,
+      skipMessage,
+      eventTitle: currentSquare?.title || null,
+      eventDescription: currentSquare?.description || null,
+      choiceLabels: currentSquare?.choices?.map(c => c.label) || null,
+      hasDiceJudgment: !!(currentSquare?.dice),
+      turnOrder: turnOrder || [],
+    };
+  }
+
+  function advanceToNext() {
+    let next = currentIdx;
+    for (let i = 0; i < players.length; i++) {
+      next = (next + 1) % players.length;
+      if (!players[next].finished) {
+        setCurrentIdx(next);
+        setTurnPhase('idle');
+        setDiceValue(null);
+        return;
+      }
+    }
+    onGameEnd(players);
+  }
+
+  function rollDice() {
+    if (turnPhase !== 'idle' || rolling) return;
+    SoundManager.diceRoll();
+    setRolling(true);
+    setTurnPhase('rolling');
+    const result = Math.floor(Math.random() * 6) + 1;
+    let count = 0;
+    rollInterval.current = setInterval(() => {
+      setDiceValue(Math.floor(Math.random() * 6) + 1);
+      count++;
+      if (count > 14) {
+        clearInterval(rollInterval.current);
+        setDiceValue(result);
+        setRolling(false);
+        const p = players[currentIdx];
+        const newPos = Math.min(40, p.position + result);
+        const newPlayers = [...players];
+        newPlayers[currentIdx] = { ...p, position: newPos, finished: newPos === 40 };
+        setPlayers(newPlayers);
+        if (newPos === 40) SoundManager.goalReach();
+        setTimeout(() => {
+          const sq = BOARD[newPos - 1];
+          setCurrentSquare(sq);
+          setShowModal(true);
+          setTurnPhase('event');
+        }, 2500);
+      }
+    }, 80);
+  }
+
+  useEffect(() => {
+    return () => { if (rollInterval.current) clearInterval(rollInterval.current); };
+  }, []);
+
+  function handleEventComplete(effects) {
+    setShowModal(false);
+    const p = players[currentIdx];
+    const updatedPlayer = applyEffects(p, effects);
+    const newPlayers = [...players];
+    newPlayers[currentIdx] = updatedPlayer;
+    setPlayers(newPlayers);
+
+    if (newPlayers.every(pl => pl.finished)) {
+      setTimeout(() => onGameEnd(newPlayers), 300);
+      return;
+    }
+
+    setTurnPhase('idle');
+    setDiceValue(null);
+    let next = currentIdx;
+    for (let i = 0; i < newPlayers.length; i++) {
+      next = (next + 1) % newPlayers.length;
+      if (!newPlayers[next].finished) {
+        setCurrentIdx(next);
+        return;
+      }
+    }
+    onGameEnd(newPlayers);
+  }
+
+  return {
+    players, currentIdx, currentPlayer, currentQuarter, allFinished,
+    turnPhase, diceValue, rolling,
+    showModal, currentSquare, skipMessage,
+    remoteAction, setRemoteAction,
+    rollDice, handleEventComplete,
+  };
+}
+
+/* ============================================================
+   GAME SCREEN (Mode A - Local Pass & Play)
+   ============================================================ */
+function GameScreen({ players: initialPlayers, onGameEnd }) {
+  const engine = useGameEngine(initialPlayers, { onGameEnd });
+  const [gameLog, setGameLog] = useState([]);
+  const [show3D, setShow3D] = useState(false);
+  const logRef = useRef(null);
+
+  // ログ追加
+  useEffect(() => {
+    if (engine.diceValue && !engine.rolling) {
+      setGameLog(prev => [...prev.slice(-20), `${engine.currentPlayer.name} が ${engine.diceValue} を出した`]);
+    }
+  }, [engine.diceValue, engine.rolling]);
+
+  useEffect(() => {
+    if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
+  }, [gameLog]);
+
+  const PLAYER_COLORS = ['#4ecdc4','#f7d794','#e77f67','#786fa6'];
+  const PLAYER_BGS = ['#e0f8f5','#fef8e8','#fce8e4','#eeeaf5'];
+
+  return (
+    <div style={{ background: '#2a4a3a', minHeight: '100vh', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', gap: 16, padding: 16 }}>
+      {/* タイトル */}
+      <div style={{ position: 'fixed', top: 8, left: 0, right: 0, textAlign: 'center', zIndex: 10 }}>
+        <span style={{ fontFamily: 'Poppins,sans-serif', fontWeight: 700, fontSize: '1.1rem',
+          background: 'linear-gradient(90deg, #4ecdc4, #f7d794, #e77f67)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+          起業人生ゲーム
+        </span>
+      </div>
+
+      {/* マップ（メイン）+ 2D/3D 切替 */}
+      <div style={{ marginTop: 36, display: 'flex', flexDirection: 'column', gap: 6, overflow: 'auto', maxWidth: '100%' }}>
+        {/* 切替ボタン */}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6 }}>
+          <button
+            onClick={() => setShow3D(false)}
+            style={{
+              padding: '4px 14px', borderRadius: 20, fontSize: '0.72rem', fontWeight: 700,
+              border: '1.5px solid #4ecdc4', cursor: 'pointer', transition: 'all 0.2s',
+              background: !show3D ? '#4ecdc4' : 'transparent',
+              color: !show3D ? '#1a3a2a' : '#4ecdc4',
+            }}>
+            🗺 2D マップ
+          </button>
+          <button
+            onClick={() => setShow3D(true)}
+            style={{
+              padding: '4px 14px', borderRadius: 20, fontSize: '0.72rem', fontWeight: 700,
+              border: '1.5px solid #6ac483', cursor: 'pointer', transition: 'all 0.2s',
+              background: show3D ? '#6ac483' : 'transparent',
+              color: show3D ? '#1a3a2a' : '#6ac483',
+            }}>
+            🏛 3D ビュー
+          </button>
+        </div>
+        {show3D
+          ? <ThreeBoard players={engine.players} currentPlayerPos={engine.currentPlayer.position} currentPlayerId={engine.currentPlayer.id} />
+          : <Board     players={engine.players} currentPlayerPos={engine.currentPlayer.position} />
+        }
+      </div>
+
+      {/* サイドパネル */}
+      <div style={{ width: 210, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 12, marginTop: 36 }}>
+
+        {/* プレイヤー一覧 */}
+        <div className="side-card">
+          <div className="side-card-title">Players</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {engine.players.map((p, i) => {
+              const ch = CHARACTERS.find(c => c.id === p.character);
+              const isActive = i === engine.currentIdx;
+              return (
+                <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ width: 32, height: 42, borderRadius: 8, background: PLAYER_BGS[i], border: `2.5px solid ${PLAYER_COLORS[i]}`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 }}>
+                    <svg viewBox="0 0 30 40" width="28" height="37" style={{ display: 'block' }}>
+                      <use href={`#char-${p.character}`}/>
+                    </svg>
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#3a5a3a' }}>{p.name}{p.finished ? ' 🎓' : ''}</div>
+                    <div style={{ fontSize: '0.5rem', fontFamily: 'Poppins,sans-serif', color: '#8aaa8a' }}>マス {p.position} / 💰{p.money} / GPA {p.gpa.toFixed(1)}</div>
+                  </div>
+                  {isActive && (
+                    <span style={{ fontSize: '0.45rem', fontFamily: 'Poppins,sans-serif', fontWeight: 700, color: '#fff', padding: '2px 6px', borderRadius: 8,
+                      background: 'linear-gradient(90deg, #4ecdc4, #6ac483)' }}>TURN</span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* サイコロ */}
+        <div className="side-card" style={{ textAlign: 'center' }}>
+          <div className="side-card-title">Dice</div>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+            <div style={{ width: 78, height: 78, borderRadius: 16, background: '#fff', border: '2px solid #b8d4a8',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2.5rem', margin: '0 auto' }}
+              className={engine.rolling ? 'animate-dice' : ''}>
+              {engine.diceValue ? DICE_FACES[engine.diceValue - 1] : '🎲'}
+            </div>
+            {engine.turnPhase === 'idle' && !engine.currentPlayer.finished && !engine.currentPlayer.skipNextTurn && !engine.skipMessage ? (
+              <button onClick={engine.rollDice}
+                style={{ width: '100%', padding: '8px 0', fontFamily: 'Poppins,sans-serif', fontWeight: 700, fontSize: '0.8rem', color: '#fff', borderRadius: 10, border: 'none', cursor: 'pointer',
+                  background: 'linear-gradient(90deg, #4ecdc4, #6ac483)', boxShadow: '0 2px 8px rgba(78,205,196,0.3)', transition: 'transform 0.15s, box-shadow 0.15s' }}
+                onMouseEnter={e => { e.target.style.transform = 'translateY(-2px)'; e.target.style.boxShadow = '0 4px 14px rgba(78,205,196,0.4)'; }}
+                onMouseLeave={e => { e.target.style.transform = ''; e.target.style.boxShadow = '0 2px 8px rgba(78,205,196,0.3)'; }}>
+                🎲 Roll Dice
+              </button>
+            ) : engine.diceValue && !engine.rolling && engine.turnPhase !== 'event' ? (
+              <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#3a5a3a' }}>{engine.diceValue} マス進む！</div>
+            ) : null}
+          </div>
+        </div>
+
+        {/* 凡例 */}
+        <div className="side-card">
+          <div className="side-card-title">Legend</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: '0.52rem' }}>
+            {[['#5ab85a','良いイベント'],['#d06050','悪いイベント'],['#d0a030','特殊イベント'],['#4ecdc4','START'],['#e8a030','GOAL']].map(([c,l]) => (
+              <div key={l} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div style={{ width: 10, height: 10, borderRadius: '50%', border: `2px solid ${c}`, flexShrink: 0 }} />
+                <span style={{ color: '#3a5a3a' }}>{l}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* ログ */}
+        <div className="side-card">
+          <div className="side-card-title">Log</div>
+          <div ref={logRef} style={{ maxHeight: 100, overflowY: 'auto', fontSize: '0.52rem', color: '#6a8a6a', display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {gameLog.length === 0 ? <span style={{ color: '#aac0aa' }}>ゲーム開始...</span> :
+              gameLog.map((l, i) => <div key={i}>{l}</div>)}
+          </div>
+        </div>
+
+        {/* Quarter */}
+        <div className="side-card" style={{ padding: 8 }}>
+          <QuarterDisplay currentQuarter={engine.currentQuarter} />
+        </div>
+      </div>
+
+      {/* Skip Turn Message */}
+      {engine.skipMessage && (
+        <div className="fixed inset-0 z-30 flex items-center justify-center" style={{ backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}>
+          <div className="rounded-2xl px-8 py-6 text-center animate-slide-up"
+               style={{ background: 'rgba(245,250,240,0.95)', border: '1px solid #b8d4a8' }}>
+            <p className="text-2xl mb-2">⏸️</p>
+            <p className="font-bold text-lg" style={{ color: '#3a5a3a' }}>{engine.skipMessage}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Event Modal */}
+      {engine.showModal && engine.currentSquare && (
+        <EventModal
+          square={engine.currentSquare}
+          player={engine.players[engine.currentIdx]}
+          onComplete={engine.handleEventComplete}
+        />
+      )}
+    </div>
+  );
+}
+
+/* ============================================================
+   RESULT SCREEN
+   ============================================================ */
+function ResultScreen({ players, onRestart }) {
+  const [showConfetti, setShowConfetti] = useState(true);
+
+  // Play fanfare on mount
+  useEffect(() => {
+    SoundManager.stopBGM();
+    setTimeout(() => SoundManager.fanfare(), 300);
+  }, []);
+
+  const ranked = useMemo(() => {
+    const scored = players.map(p => ({
+      ...p,
+      rawScore: p.money + p.sp,
+      penalized: p.gpa < 2.0,
+      finalScore: calculateScore(p),
+    }));
+    scored.sort((a, b) => {
+      if (b.finalScore !== a.finalScore) return b.finalScore - a.finalScore;
+      return b.gpa - a.gpa;
+    });
+    return scored.map((p, i) => ({
+      ...p,
+      rank: i + 1,
+      titleInfo: getTitle(i + 1, p.gpa),
+    }));
+  }, [players]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setShowConfetti(false), 5000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const handleShareToX = () => {
+    const rankEmoji = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣', '6️⃣'];
+    const lines = ranked.map((p, i) =>
+      `${rankEmoji[i] || `${p.rank}位`} ${p.name}｜${p.titleInfo.emoji}${p.titleInfo.title}｜${p.finalScore}万円`
+    );
+    const winner = ranked[0];
+    const text = [
+      `🏆 起業人生ゲーム 決算発表！`,
+      `優勝：${winner.name}（${winner.finalScore}万円）`,
+      ``,
+      ...lines,
+      ``,
+      `#起業人生ゲーム #ボードゲーム #大学祭`,
+    ].join('\n');
+    window.open(
+      `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`,
+      '_blank', 'noopener,noreferrer'
+    );
+  };
+
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center p-4"
+         style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 40%, #1a1f3a 70%, #0f172a 100%)' }}>
+      {showConfetti && <Confetti />}
+
+      <div className="max-w-lg w-full space-y-5">
+        <div className="text-center space-y-2">
+          <div className="text-4xl mb-1">🏆</div>
+          <h2 className="text-2xl font-extrabold animate-title-glow"
+              style={{ background: 'linear-gradient(135deg, #e0e7ff 0%, #a5b4fc 40%, #818cf8 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+            最終結果発表
+          </h2>
+          <p className="text-xs" style={{ color: '#64748b' }}>起業人生ゲーム 決算報告</p>
+        </div>
+
+        <div className="space-y-3">
+          {ranked.map((p, i) => {
+            const rankColors = [
+              { bg: 'linear-gradient(135deg, #fbbf24, #f59e0b)', border: 'rgba(251,191,36,0.5)', glow: 'rgba(251,191,36,0.15)' },
+              { bg: 'linear-gradient(135deg, #94a3b8, #64748b)', border: 'rgba(148,163,184,0.4)', glow: 'none' },
+              { bg: 'linear-gradient(135deg, #d97706, #b45309)', border: 'rgba(217,119,6,0.4)', glow: 'none' },
+              { bg: 'rgba(51,65,85,0.5)', border: 'rgba(51,65,85,0.3)', glow: 'none' },
+            ];
+            const rc = rankColors[Math.min(i, 3)];
+            return (
+            <div key={p.id}
+              className="rounded-2xl p-4 animate-slide-up"
+              style={{ background: 'rgba(30,41,59,0.7)', backdropFilter: 'blur(12px)', border: `1px solid ${rc.border}`, boxShadow: i === 0 ? `0 4px 20px ${rc.glow}` : 'none', animationDelay: `${i * 0.2}s` }}
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold"
+                     style={{ background: rc.bg, color: i <= 2 ? '#0f172a' : '#94a3b8' }}>
+                  {p.rank}
+                </div>
+                <CharacterAvatar character={p.character} size="md" />
+                <div className="flex-1">
+                  <div className="font-semibold" style={{ color: '#e2e8f0' }}>{p.name}</div>
+                  <div className="text-sm font-bold" style={{ color: '#a5b4fc' }}>
+                    {p.titleInfo.emoji} {p.titleInfo.title}
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-2xl font-extrabold" style={{ color: '#a5b4fc' }}>{p.finalScore}<span className="text-sm font-normal ml-0.5">万</span></div>
+                </div>
+              </div>
+
+              {/* Score Breakdown */}
+              <div className="mt-3 grid grid-cols-4 gap-2 text-center text-xs">
+                <div className="rounded-lg p-1.5" style={{ background: 'rgba(15,23,42,0.5)' }}>
+                  <div className="font-bold" style={{ color: '#fbbf24' }}>{p.money}万</div>
+                  <div style={{ color: '#64748b', fontSize: '10px' }}>💰 資金</div>
+                </div>
+                <div className="rounded-lg p-1.5" style={{ background: 'rgba(15,23,42,0.5)' }}>
+                  <div className="font-bold" style={{ color: '#818cf8' }}>{p.sp}pt</div>
+                  <div style={{ color: '#64748b', fontSize: '10px' }}>⚡ SP</div>
+                </div>
+                <div className="rounded-lg p-1.5" style={{ background: 'rgba(15,23,42,0.5)' }}>
+                  <div className="font-bold" style={{ color: p.gpa < 2.0 ? '#f87171' : '#4ade80' }}>{p.gpa.toFixed(1)}</div>
+                  <div style={{ color: '#64748b', fontSize: '10px' }}>📊 GPA</div>
+                </div>
+                <div className="rounded-lg p-1.5" style={{ background: 'rgba(15,23,42,0.5)' }}>
+                  <div className="font-bold" style={{ color: '#e2e8f0' }}>{p.rawScore}万</div>
+                  <div style={{ color: '#64748b', fontSize: '10px' }}>合計</div>
+                </div>
+              </div>
+              {p.penalized && (
+                <div className="mt-2 text-center text-xs font-semibold rounded-lg py-1.5"
+                     style={{ background: 'rgba(239,68,68,0.1)', color: '#f87171', border: '1px solid rgba(239,68,68,0.2)' }}>
+                  ⚠️ GPA 2.0未満のため総資産半減！ ({p.rawScore}万 → {p.finalScore}万)
+                </div>
+              )}
+            </div>
+            );
+          })}
+        </div>
+
+        {/* X (Twitter) 投稿ボタン */}
+        <button
+          onClick={handleShareToX}
+          className="w-full py-3.5 font-bold rounded-xl text-base active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+          style={{
+            background: 'linear-gradient(135deg, #0f0f0f, #1a1a1a)',
+            color: '#ffffff',
+            border: '1px solid rgba(255,255,255,0.18)',
+            boxShadow: '0 4px 15px rgba(0,0,0,0.5)',
+          }}
+        >
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">
+            <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.747l7.73-8.835L1.254 2.25H8.08l4.259 5.63 5.905-5.63zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+          </svg>
+          結果をXに投稿する
+        </button>
+
+        <button
+          onClick={onRestart}
+          className="w-full py-3.5 font-bold rounded-xl text-lg active:scale-[0.98] transition-all mt-2"
+          style={{ background: 'linear-gradient(135deg, #4f46e5, #7c3aed)', color: '#fff', boxShadow: '0 4px 15px rgba(79,70,229,0.4)' }}
+        >
+          もう一度遊ぶ →
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   HOST LOBBY SCREEN (Mode B - waiting for players)
+   ============================================================ */
+function HostLobbyScreen({ roomCode, onStart, onCancel }) {
+  const [room, setRoom] = useState(null);
+  // Auto-detect: use hostname unless it's localhost/127.0.0.1
+  const defaultHost = (() => {
+    const h = window.location.hostname;
+    return (h === 'localhost' || h === '127.0.0.1') ? '' : h;
+  })();
+  const [hostIp, setHostIp] = useState(defaultHost);
+  const isLocalhost = !hostIp || hostIp === 'localhost' || hostIp === '127.0.0.1';
+  const joinUrl = FirebaseManager.getJoinUrl(roomCode, hostIp || null);
+
+  useEffect(() => {
+    const unsub = FirebaseManager.listenRoom((data) => {
+      setRoom(data);
+    });
+    return unsub;
+  }, [roomCode]);
+
+  const playerList = room?.players ? Object.entries(room.players).sort((a, b) => a[1].order - b[1].order) : [];
+  const canStart = playerList.length >= 2;
+
+  function handleStart() {
+    if (!canStart) return;
+    SoundManager.click();
+    const turnOrder = playerList.map(([uid]) => uid);
+    const gamePlayers = playerList.map(([uid, p], i) => ({
+      id: i,
+      uid,
+      name: p.name,
+      character: p.character,
+      money: 50,
+      gpa: 3.0,
+      sp: 0,
+      position: 1,
+      finished: false,
+      skipNextTurn: false,
+    }));
+    onStart(gamePlayers, turnOrder);
+  }
+
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-gradient-to-b from-gray-900 via-gray-800 to-gray-900">
+      <div className="text-center space-y-6 max-w-md w-full">
+        <h2 className="text-2xl font-bold text-yellow-400">📺 ホスト画面</h2>
+        <p className="text-gray-400 text-sm">プレイヤーの参加を待っています...</p>
+
+        {/* IP Address Setup (must come first) */}
+        {isLocalhost ? (
+          <div className="bg-yellow-900/40 border-2 border-yellow-500 rounded-2xl p-5 space-y-3">
+            <div className="text-center">
+              <div className="text-3xl mb-2">⚠️</div>
+              <p className="text-yellow-300 font-bold text-base">最初にPCのIPアドレスを入力してください</p>
+              <p className="text-yellow-200/70 text-xs mt-1">スマホからアクセスするために必要です</p>
+            </div>
+            <input
+              type="text"
+              value={hostIp}
+              onChange={(e) => setHostIp(e.target.value.trim())}
+              placeholder="192.168.0.14"
+              autoFocus
+              className="w-full text-center text-xl font-bold bg-gray-900 text-yellow-400 px-3 py-3 rounded-lg border-2 border-yellow-500 focus:border-yellow-300 focus:outline-none"
+            />
+            <div className="bg-gray-900/60 rounded-lg p-3 text-left">
+              <p className="text-gray-400 text-[10px] mb-1">▼ ターミナルで以下を実行して確認:</p>
+              <code className="text-green-400 text-xs">ipconfig getifaddr en0</code>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Room Code & QR */}
+            <div className="bg-gray-800 rounded-2xl p-6 space-y-4">
+              <div>
+                <p className="text-gray-400 text-xs mb-1">ルームコード</p>
+                <div className="text-5xl font-bold text-yellow-400 tracking-widest">{roomCode}</div>
+              </div>
+              <div className="flex justify-center">
+                <QRCodeDisplay text={joinUrl} size={220} />
+              </div>
+              <p className="text-gray-500 text-[10px] break-all">{joinUrl}</p>
+
+              <div className="flex items-center gap-2 pt-2 border-t border-gray-700">
+                <label className="text-gray-400 text-[10px] flex-shrink-0">IP:</label>
+                <input
+                  type="text"
+                  value={hostIp}
+                  onChange={(e) => setHostIp(e.target.value.trim())}
+                  className="flex-1 text-center bg-gray-900 text-white px-2 py-1 rounded text-xs border border-gray-600 focus:border-yellow-400 focus:outline-none"
+                />
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Player List */}
+        <div className="bg-gray-800 rounded-2xl p-4 space-y-2">
+          <p className="text-gray-300 text-sm font-bold">参加者 ({playerList.length}/4)</p>
+          {playerList.length === 0 ? (
+            <p className="text-gray-500 text-sm py-4">まだ誰も参加していません</p>
+          ) : (
+            <div className="space-y-2">
+              {playerList.map(([uid, p], i) => {
+                const ch = CHARACTERS.find(c => c.id === p.character);
+                return (
+                  <div key={uid} className="flex items-center gap-3 bg-gray-700 rounded-xl p-3">
+                    <CharacterAvatar character={p.character} size="sm" />
+                    <div className="flex-1 text-left">
+                      <div className="text-white font-bold text-sm">{p.name}</div>
+                      <div className="text-gray-400 text-[10px]">{ch?.name}</div>
+                    </div>
+                    <div className="text-green-400 text-xs">接続中</div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        <button
+          onClick={handleStart}
+          disabled={!canStart}
+          className={`w-full py-4 font-bold rounded-xl text-xl active:scale-95 transition-all
+            ${canStart ? 'bg-green-600 hover:bg-green-500 text-white' : 'bg-gray-700 text-gray-500 cursor-not-allowed'}`}
+        >
+          {canStart ? 'ゲームスタート！ 🎲' : '2人以上で開始できます'}
+        </button>
+        <button
+          onClick={onCancel}
+          className="w-full py-2 text-gray-500 hover:text-gray-300 text-sm transition-colors"
+        >
+          キャンセル
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   HOST GAME SCREEN (Mode B - large display)
+   ============================================================ */
+function HostGameScreen({ players: initialPlayers, onGameEnd, roomCode, turnOrder }) {
+  const engine = useGameEngine(initialPlayers, { onGameEnd, mode: 'host', roomCode, turnOrder });
+  const [show3D, setShow3D] = useState(false);
+
+  return (
+    <div className="h-screen bg-gray-900 flex overflow-hidden">
+      {/* Left: Board */}
+      <div className="flex-1 flex flex-col min-w-0">
+        <div className="py-2 px-4 flex-shrink-0 flex items-center justify-between">
+          <QuarterDisplay currentQuarter={engine.currentQuarter} />
+          {/* 2D/3D 切替 */}
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button onClick={() => setShow3D(false)}
+              style={{ padding: '3px 12px', borderRadius: 16, fontSize: '0.68rem', fontWeight: 700, border: '1.5px solid #4ecdc4', cursor: 'pointer',
+                background: !show3D ? '#4ecdc4' : 'transparent', color: !show3D ? '#0f1a15' : '#4ecdc4' }}>
+              🗺 2D
+            </button>
+            <button onClick={() => setShow3D(true)}
+              style={{ padding: '3px 12px', borderRadius: 16, fontSize: '0.68rem', fontWeight: 700, border: '1.5px solid #6ac483', cursor: 'pointer',
+                background: show3D ? '#6ac483' : 'transparent', color: show3D ? '#0f1a15' : '#6ac483' }}>
+              🏛 3D
+            </button>
+          </div>
+        </div>
+        <div className="flex-1 overflow-y-auto px-4 py-2 min-h-0">
+          {show3D
+            ? <ThreeBoard players={engine.players} currentPlayerPos={engine.currentPlayer.position} currentPlayerId={engine.currentPlayer.id} />
+            : <Board     players={engine.players} currentPlayerPos={engine.currentPlayer.position} />
+          }
+        </div>
+      </div>
+
+      {/* Right: Sidebar */}
+      <div className="w-72 lg:w-80 bg-gray-800 border-l border-gray-700 flex flex-col overflow-y-auto">
+        <div className="p-3 border-b border-gray-700 text-center">
+          <p className="text-gray-500 text-[10px]">部屋コード: <span className="text-yellow-400 font-bold">{roomCode}</span></p>
+        </div>
+
+        {/* Player Cards */}
+        <div className="p-3 space-y-2 flex-1">
+          {engine.players.map((p, i) => (
+            <PlayerCard key={p.id} player={p} isActive={i === engine.currentIdx} />
+          ))}
+        </div>
+
+        {/* Turn Info + Proxy Buttons */}
+        <div className="p-3 border-t border-gray-700 space-y-3">
+          {engine.skipMessage && (
+            <div className="text-center bg-gray-900 rounded-xl p-3">
+              <p className="text-xl">⏸️</p>
+              <p className="text-white font-bold text-sm">{engine.skipMessage}</p>
+            </div>
+          )}
+
+          {engine.turnPhase === 'idle' && !engine.currentPlayer.finished && !engine.currentPlayer.skipNextTurn && !engine.skipMessage && (
+            <div className="text-center space-y-2">
+              <p className="text-yellow-400 font-bold text-sm">
+                {engine.currentPlayer.name} のターン
+              </p>
+              <p className="text-gray-500 text-[10px]">📱 スマホで操作中...</p>
+              <button
+                onClick={engine.rollDice}
+                className="w-full py-3 bg-yellow-500/30 hover:bg-yellow-500/50 text-yellow-400 border border-yellow-500/50 font-bold rounded-xl text-sm active:scale-95 transition-all"
+              >
+                🎲 代理操作: サイコロを振る
+              </button>
+            </div>
+          )}
+
+          {(engine.turnPhase === 'rolling' || engine.diceValue) && engine.turnPhase !== 'event' && (
+            <div className="text-center">
+              <DiceDisplay value={engine.diceValue} rolling={engine.rolling} />
+              {!engine.rolling && engine.diceValue && (
+                <p className="text-yellow-400 font-bold mt-1 text-sm">{engine.diceValue} マス進む！</p>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Event Modal (full screen overlay) */}
+      {engine.showModal && engine.currentSquare && (
+        <EventModal
+          square={engine.currentSquare}
+          player={engine.players[engine.currentIdx]}
+          onComplete={engine.handleEventComplete}
+          remoteAction={engine.remoteAction}
+          onRemoteActionConsumed={() => engine.setRemoteAction(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+/* ============================================================
+   CONTROLLER JOIN SCREEN (Mode B - player joining)
+   ============================================================ */
+function ControllerJoinScreen({ initialRoomCode, onJoined, onCancel, firebaseReady }) {
+  const [roomCode, setRoomCode] = useState(initialRoomCode || '');
+  const [name, setName] = useState('');
+  const [character, setCharacter] = useState(null);
+  const [error, setError] = useState(null);
+  const [joining, setJoining] = useState(false);
+  const [usedChars, setUsedChars] = useState([]);
+
+  // firebaseReady が変わったタイミングでも再購読できるよう依存配列に追加
+  useEffect(() => {
+    if (roomCode.length !== 4 || !firebaseReady || !FirebaseManager.db) return;
+    const ref = FirebaseManager.db.ref(`rooms/${roomCode}/players`);
+    const handler = ref.on('value', snap => {
+      const players = snap.val();
+      if (players) {
+        setUsedChars(Object.values(players).map(p => p.character));
+      } else {
+        setUsedChars([]);
+      }
+    });
+    return () => ref.off('value', handler);
+  }, [roomCode, firebaseReady]);
+
+  async function handleJoin() {
+    if (!roomCode || !name || !character || joining || !firebaseReady) return;
+    setJoining(true);
+    setError(null);
+    try {
+      await FirebaseManager.joinRoom(roomCode.toUpperCase(), name, character);
+      SoundManager.click();
+      onJoined(roomCode.toUpperCase());
+    } catch (e) {
+      setError(e.message);
+    }
+    setJoining(false);
+  }
+
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-gradient-to-b from-gray-900 via-gray-800 to-gray-900">
+      <div className="text-center space-y-4 max-w-sm w-full">
+        <h2 className="text-2xl font-bold text-purple-400">📱 プレイヤー参加</h2>
+
+        {/* Firebase接続中インジケータ */}
+        {!firebaseReady && (
+          <div className="bg-yellow-900/40 border border-yellow-600 rounded-xl p-3 flex items-center justify-center gap-2">
+            <svg className="animate-spin h-4 w-4 text-yellow-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+            </svg>
+            <p className="text-yellow-400 text-sm">サーバーに接続中...</p>
+          </div>
+        )}
+
+        {/* Room Code Input */}
+        <div className="bg-gray-800 rounded-2xl p-4 space-y-3">
+          <label className="text-gray-300 text-sm font-bold block">ルームコード</label>
+          <input
+            type="text"
+            value={roomCode}
+            onChange={(e) => setRoomCode(e.target.value.toUpperCase().slice(0, 4))}
+            placeholder="例: A3K9"
+            maxLength={4}
+            className="w-full text-center text-3xl font-bold tracking-widest bg-gray-900 text-yellow-400 px-4 py-3 rounded-xl border border-gray-600 focus:border-yellow-400 focus:outline-none uppercase"
+          />
+        </div>
+
+        {/* Name Input */}
+        <div className="bg-gray-800 rounded-2xl p-4 space-y-3">
+          <label className="text-gray-300 text-sm font-bold block">名前</label>
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="あなたの名前"
+            className="w-full bg-gray-900 text-white px-4 py-3 rounded-xl border border-gray-600 focus:border-yellow-400 focus:outline-none text-center"
+          />
+        </div>
+
+        {/* Character Selection */}
+        <div className="bg-gray-800 rounded-2xl p-4 space-y-3">
+          <label className="text-gray-300 text-sm font-bold block">キャラクター</label>
+          <div className="grid grid-cols-2 gap-2">
+            {CHARACTERS.map(ch => {
+              const isUsed = usedChars.includes(ch.id);
+              const isSelected = character === ch.id;
+              const star = (n) => '★'.repeat(n) + '☆'.repeat(5 - n);
+              return (
+                <button
+                  key={ch.id}
+                  onClick={() => !isUsed && setCharacter(ch.id)}
+                  disabled={isUsed}
+                  className="p-3 rounded-xl border-2 transition-all text-left active:scale-95"
+                  style={isSelected
+                    ? { borderColor: ch.color, background: '#374151', boxShadow: `0 0 12px ${ch.color}55` }
+                    : isUsed
+                    ? { borderColor: '#374151', background: '#111827', opacity: 0.4, cursor: 'not-allowed' }
+                    : { borderColor: '#4b5563', background: '#374151' }}
+                >
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <CharacterAvatar character={ch.id} size="sm" />
+                    <div>
+                      <div className="font-bold text-xs leading-tight" style={{ color: ch.color }}>{ch.name}</div>
+                      <div className="text-[9px] leading-tight text-gray-400">{ch.role}</div>
+                    </div>
+                  </div>
+                  <div className="space-y-0.5">
+                    {[['発想', 'idea'], ['行動', 'action'], ['分析', 'analysis'], ['人脈', 'network']].map(([label, key]) => (
+                      <div key={key} className="flex items-center gap-1">
+                        <span className="text-[8px] w-5 shrink-0 text-gray-500">{label}</span>
+                        <span className="text-[8px]" style={{ color: ch.color }}>{star(ch.stats[key])}</span>
+                      </div>
+                    ))}
+                  </div>
+                  {isUsed && <div className="text-[10px] text-gray-500 mt-1 text-center">選択済</div>}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {error && (
+          <div className="bg-red-900/50 border border-red-500 rounded-xl p-3">
+            <p className="text-red-400 text-sm">{error}</p>
+          </div>
+        )}
+
+        <button
+          onClick={handleJoin}
+          disabled={!roomCode || !name || !character || joining || !firebaseReady}
+          className={`w-full py-4 font-bold rounded-xl text-xl active:scale-95 transition-all
+            ${roomCode && name && character && !joining && firebaseReady ? 'bg-purple-600 hover:bg-purple-500 text-white' : 'bg-gray-700 text-gray-500 cursor-not-allowed'}`}
+        >
+          {joining ? '参加中...' : !firebaseReady ? '接続中...' : '部屋に参加 📱'}
+        </button>
+        <button
+          onClick={onCancel}
+          className="w-full py-2 text-gray-500 hover:text-gray-300 text-sm transition-colors"
+        >
+          戻る
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   CONTROLLER LOBBY SCREEN (Mode B - waiting for game start)
+   ============================================================ */
+function ControllerLobbyScreen({ roomCode }) {
+  const [room, setRoom] = useState(null);
+
+  useEffect(() => {
+    const unsub = FirebaseManager.listenRoom((data) => setRoom(data));
+    return unsub;
+  }, [roomCode]);
+
+  const playerList = room?.players ? Object.entries(room.players).sort((a, b) => a[1].order - b[1].order) : [];
+  const myPlayer = room?.players?.[FirebaseManager.uid];
+
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-gradient-to-b from-gray-900 via-gray-800 to-gray-900">
+      <div className="text-center space-y-6 max-w-sm w-full">
+        <h2 className="text-xl font-bold text-purple-400">📱 参加完了！</h2>
+        <div className="bg-gray-800 rounded-2xl p-4 space-y-3">
+          <p className="text-gray-500 text-xs">部屋コード</p>
+          <p className="text-3xl font-bold text-yellow-400 tracking-widest">{roomCode}</p>
+          {myPlayer && (
+            <div className="flex items-center justify-center gap-2 mt-2">
+              <CharacterAvatar character={myPlayer.character} size="sm" />
+              <span className="text-white font-bold">{myPlayer.name}</span>
+            </div>
+          )}
+        </div>
+
+        <div className="bg-gray-800 rounded-2xl p-4 space-y-2">
+          <p className="text-gray-300 text-sm font-bold">参加者 ({playerList.length}/4)</p>
+          {playerList.map(([uid, p]) => (
+            <div key={uid} className="flex items-center gap-2 bg-gray-700/50 rounded-lg p-2">
+              <CharacterAvatar character={p.character} size="xs" />
+              <span className="text-white text-sm">{p.name}</span>
+              {uid === FirebaseManager.uid && <span className="text-yellow-400 text-[10px] ml-auto">あなた</span>}
+            </div>
+          ))}
+        </div>
+
+        <div className="animate-pulse text-gray-400 text-sm">
+          ホストがゲーム開始するのを待っています...
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   CONTROLLER GAME SCREEN (Mode B - player's phone view)
+   ============================================================ */
+function ControllerScreen({ roomCode, onGameEnd }) {
+  const [gameState, setGameState] = useState(null);
+  const [sending, setSending] = useState(false);
+
+  useEffect(() => {
+    const unsub = FirebaseManager.listenRoom((data) => {
+      if (data?.game) setGameState(data.game);
+      if (data?.status === 'finished' && data?.game?.finished) {
+        onGameEnd(data.game.players || []);
+      }
+    });
+    return unsub;
+  }, [roomCode]);
+
+  if (!gameState) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-900">
+        <div className="text-gray-400 animate-pulse">ゲームデータを読み込み中...</div>
+      </div>
+    );
+  }
+
+  const myUid = FirebaseManager.uid;
+  const myPlayerIdx = gameState.players?.findIndex(p => p.uid === myUid);
+  const myPlayer = myPlayerIdx >= 0 ? gameState.players[myPlayerIdx] : null;
+  const isMyTurn = gameState.currentPlayerUid === myUid;
+  const currentPlayerName = gameState.players?.[gameState.currentIdx]?.name || '???';
+
+  async function sendAction(action) {
+    if (sending) return;
+    setSending(true);
+    try {
+      await FirebaseManager.writeAction(action);
+      SoundManager.click();
+    } catch (e) {
+      console.error('Action error:', e);
+    }
+    setSending(false);
+  }
+
+  const gpaColor = myPlayer ? (myPlayer.gpa < 2.0 ? 'text-red-400' : myPlayer.gpa < 2.5 ? 'text-orange-400' : 'text-green-400') : 'text-gray-400';
+
+  return (
+    <div className="min-h-screen bg-gray-900 flex flex-col p-4">
+      {/* Header */}
+      <div className="text-center pb-3 border-b border-gray-700 flex-shrink-0">
+        <h2 className="text-lg font-bold text-yellow-400">🎲 起業人生ゲーム</h2>
+        <p className="text-gray-500 text-[10px]">部屋: {roomCode}</p>
+      </div>
+
+      {/* My Stats */}
+      {myPlayer && (
+        <div className="bg-gray-800 rounded-2xl p-4 mt-3 flex-shrink-0">
+          <div className="flex items-center gap-3 mb-3">
+            <CharacterAvatar character={myPlayer.character} size="md" />
+            <div>
+              <div className="text-white font-bold">{myPlayer.name}</div>
+              <div className="text-gray-400 text-[10px]">📍 マス{myPlayer.position}{myPlayer.finished ? ' 🏁ゴール済' : ''}</div>
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-2 text-center">
+            <div className="bg-gray-900/50 rounded-lg p-2">
+              <div className="text-yellow-400 font-bold text-lg">{myPlayer.money}万</div>
+              <div className="text-gray-500 text-[10px]">💰 資金</div>
+            </div>
+            <div className="bg-gray-900/50 rounded-lg p-2">
+              <div className={`font-bold text-lg ${gpaColor}`}>{myPlayer.gpa?.toFixed(1)}</div>
+              <div className="text-gray-500 text-[10px]">📊 GPA</div>
+            </div>
+            <div className="bg-gray-900/50 rounded-lg p-2">
+              <div className="text-blue-400 font-bold text-lg">{myPlayer.sp}</div>
+              <div className="text-gray-500 text-[10px]">⚡ SP</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Action Area */}
+      <div className="flex-1 flex flex-col items-center justify-center py-6">
+        {isMyTurn ? (
+          <div className="text-center space-y-4 w-full max-w-sm">
+            <p className="text-2xl font-bold text-yellow-400 animate-pulse">あなたのターンです！</p>
+
+            {/* Roll Dice */}
+            {gameState.phase === 'idle' && !gameState.skipMessage && (
+              <button
+                onClick={() => sendAction({ type: 'roll' })}
+                disabled={sending}
+                className="w-full py-6 bg-yellow-500 hover:bg-yellow-400 text-gray-900 font-bold rounded-2xl text-2xl active:scale-95 transition-transform shadow-lg shadow-yellow-500/30"
+              >
+                🎲 サイコロを振る
+              </button>
+            )}
+
+            {/* Dice Result */}
+            {gameState.diceValue && gameState.phase !== 'idle' && (
+              <div className="text-center">
+                <div className="text-6xl mb-2">{DICE_FACES[gameState.diceValue - 1]}</div>
+                <p className="text-yellow-400 font-bold">{gameState.diceValue} マス進む！</p>
+              </div>
+            )}
+
+            {/* Choice Buttons */}
+            {gameState.showModal && gameState.choiceLabels && (
+              <div className="space-y-3">
+                <p className="text-gray-300 text-sm font-bold">{gameState.eventTitle}</p>
+                <p className="text-yellow-300 font-bold">どちらを選ぶ？</p>
+                {gameState.choiceLabels.map((label, i) => (
+                  <button
+                    key={i}
+                    onClick={() => sendAction({ type: 'choice', value: i })}
+                    disabled={sending}
+                    className="w-full py-4 bg-gray-700 hover:bg-gray-600 rounded-xl text-white font-bold text-lg border border-gray-500 active:scale-98 transition-transform"
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Judgment Dice */}
+            {gameState.showModal && gameState.hasDiceJudgment && !gameState.choiceLabels && (
+              <div className="space-y-3">
+                <p className="text-gray-300 text-sm font-bold">{gameState.eventTitle}</p>
+                <p className="text-yellow-300 font-bold">🎲 サイコロ判定！</p>
+                <button
+                  onClick={() => sendAction({ type: 'judgment' })}
+                  disabled={sending}
+                  className="w-full py-5 bg-yellow-500 hover:bg-yellow-400 text-gray-900 font-bold rounded-2xl text-xl active:scale-95 transition-transform"
+                >
+                  🎲 サイコロを振る
+                </button>
+              </div>
+            )}
+
+            {/* Event info */}
+            {gameState.showModal && !gameState.choiceLabels && !gameState.hasDiceJudgment && (
+              <div className="bg-gray-800 rounded-xl p-4">
+                <p className="text-gray-300 text-sm">{gameState.eventTitle}</p>
+                <p className="text-gray-500 text-[10px] mt-1">ホスト画面で結果を確認してください</p>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="text-center space-y-4">
+            <div className="text-6xl mb-4">⏳</div>
+            <p className="text-gray-300 font-bold text-lg">
+              {currentPlayerName} さんのターンです
+            </p>
+            <p className="text-gray-500 text-sm">お待ちください...</p>
+          </div>
+        )}
+      </div>
+
+      {/* All Players Mini Status */}
+      {gameState.players && (
+        <div className="flex-shrink-0 border-t border-gray-700 pt-3">
+          <div className="flex gap-2 justify-center flex-wrap">
+            {gameState.players.map((p, i) => {
+              const isActive = i === gameState.currentIdx;
+              return (
+                <div key={i} className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] ${isActive ? 'bg-yellow-500/20 text-yellow-400' : 'bg-gray-800 text-gray-500'}`}>
+                  <CharacterAvatar character={p.character} size="xs" />
+                  <span>{p.name}</span>
+                  {p.uid === myUid && <span className="text-yellow-400">*</span>}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ============================================================
+   APP COMPONENT
+   ============================================================ */
+function App() {
+  // Check URL for room code (from QR code scan)
+  const urlRoomCode = useMemo(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('room') || null;
+  }, []);
+
+  const [mode, setMode] = useState(urlRoomCode ? 'controller' : null); // null | 'local' | 'host' | 'controller'
+  const [phase, setPhase] = useState(urlRoomCode ? 'join' : 'title');
+  const [numPlayers, setNumPlayers] = useState(2);
+  const [players, setPlayers] = useState([]);
+  const [finalPlayers, setFinalPlayers] = useState([]);
+  const [muted, setMuted] = useState(false);
+  const [roomCode, setRoomCode] = useState(urlRoomCode || '');
+  const [turnOrder, setTurnOrder] = useState([]);
+  const [firebaseReady, setFirebaseReady] = useState(false);
+
+  // Initialize Firebase for Mode B (when entering multi-device mode)
+  useEffect(() => {
+    if (mode === 'host' || mode === 'controller') {
+      (async () => {
+        const ok = FirebaseManager.init();
+        if (ok) {
+          await FirebaseManager.signIn();
+          setFirebaseReady(true);
+        }
+      })();
+    }
+    return () => {
+      if (mode === 'host' || mode === 'controller') {
+        FirebaseManager.cleanup();
+      }
+    };
+  }, [mode]);
+
+  // For controller: listen for game start
+  useEffect(() => {
+    if (mode !== 'controller' || phase !== 'lobby') return;
+    const unsub = FirebaseManager.listenRoom((data) => {
+      if (data?.status === 'playing') {
+        setPhase('playing');
+      }
+    });
+    return unsub;
+  }, [mode, phase]);
+
+  // --- Mode A handlers ---
+  function handleTitleStartLocal(n) {
+    SoundManager.init();
+    SoundManager.click();
+    setMode('local');
+    setNumPlayers(n);
+    setPhase('setup');
+  }
+
+  function handleSetupStart(playerList) {
+    SoundManager.init();
+    SoundManager.click();
+    setPlayers(playerList);
+    setPhase('playing');
+  }
+
+  // --- Mode B handlers ---
+  async function handleTitleStartMulti(role) {
+    SoundManager.init();
+    SoundManager.click();
+    setMode(role);
+    if (role === 'host') {
+      setPhase('creating_room');
+      const ok = FirebaseManager.init();
+      if (ok) {
+        await FirebaseManager.signIn();
+        setFirebaseReady(true);
+        await FirebaseManager.cleanupOldRooms();
+        const code = await FirebaseManager.createRoom();
+        setRoomCode(code);
+        setPhase('lobby');
+      }
+    } else {
+      setPhase('join');
+    }
+  }
+
+  function handleControllerJoined(code) {
+    setRoomCode(code);
+    setPhase('lobby');
+  }
+
+  function handleHostStartGame(gamePlayers, order) {
+    SoundManager.init();
+    SoundManager.click();
+    setPlayers(gamePlayers);
+    setTurnOrder(order);
+    FirebaseManager.startGame({
+      players: gamePlayers.map((p, i) => ({ ...p, uid: order[i] })),
+      currentIdx: 0,
+      currentPlayerUid: order[0],
+      phase: 'idle',
+      diceValue: null,
+      currentSquareId: null,
+      showModal: false,
+      skipMessage: null,
+      eventTitle: null,
+      eventDescription: null,
+      choiceLabels: null,
+      hasDiceJudgment: false,
+      turnOrder: order,
+    });
+    setPhase('playing');
+  }
+
+  // --- Common handlers ---
+  function handleGameEnd(endPlayers) {
+    setFinalPlayers(Array.isArray(endPlayers) ? endPlayers : []);
+    setPhase('result');
+  }
+
+  function handleRestart() {
+    SoundManager.click();
+    if (mode === 'host') {
+      FirebaseManager.deleteRoom();
+    }
+    FirebaseManager.cleanup();
+    setMode(null);
+    setPhase('title');
+    setPlayers([]);
+    setFinalPlayers([]);
+    setRoomCode('');
+    setTurnOrder([]);
+    setFirebaseReady(false);
+    // Clear URL params
+    if (window.history.replaceState) {
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }
+
+  function handleCancelMulti() {
+    SoundManager.click();
+    if (mode === 'host' && roomCode) {
+      FirebaseManager.deleteRoom();
+    }
+    FirebaseManager.cleanup();
+    setMode(null);
+    setPhase('title');
+    setRoomCode('');
+    setFirebaseReady(false);
+    if (window.history.replaceState) {
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }
+
+  function handleToggleMute() {
+    SoundManager.init();
+    const nowMuted = SoundManager.toggle();
+    setMuted(nowMuted);
+    if (!nowMuted && phase === 'playing') {
+      SoundManager.startBGM();
+    }
+  }
+
+  return (
+    <div className="font-pixel relative">
+      {/* Mute Button */}
+      <button
+        onClick={handleToggleMute}
+        className="fixed top-2 right-2 z-50 w-10 h-10 rounded-full bg-gray-800/80 backdrop-blur border border-gray-600 flex items-center justify-center text-lg hover:bg-gray-700/80 active:scale-90 transition-transform shadow-lg"
+        title={muted ? '音声ON' : '音声OFF'}
+      >
+        {muted ? '🔇' : '🔊'}
+      </button>
+
+      {/* Title Screen */}
+      {phase === 'title' && (
+        <TitleScreen
+          onStartLocal={handleTitleStartLocal}
+          onStartMulti={handleTitleStartMulti}
+        />
+      )}
+
+      {/* Mode A: Local */}
+      {phase === 'setup' && mode === 'local' && (
+        <SetupScreen numPlayers={numPlayers} onStart={handleSetupStart} />
+      )}
+      {phase === 'playing' && mode === 'local' && (
+        <GameScreen players={players} onGameEnd={handleGameEnd} />
+      )}
+
+      {/* Mode B Host: Creating Room */}
+      {phase === 'creating_room' && mode === 'host' && (
+        <div className="min-h-screen flex items-center justify-center bg-gray-900">
+          <div className="text-center text-gray-400 animate-pulse">部屋を作成中...</div>
+        </div>
+      )}
+
+      {/* Mode B Host: Lobby */}
+      {phase === 'lobby' && mode === 'host' && (
+        <HostLobbyScreen
+          roomCode={roomCode}
+          onStart={handleHostStartGame}
+          onCancel={handleCancelMulti}
+        />
+      )}
+
+      {/* Mode B Host: Playing */}
+      {phase === 'playing' && mode === 'host' && (
+        <HostGameScreen
+          players={players}
+          onGameEnd={handleGameEnd}
+          roomCode={roomCode}
+          turnOrder={turnOrder}
+        />
+      )}
+
+      {/* Mode B Controller: Join */}
+      {phase === 'join' && mode === 'controller' && (
+        <ControllerJoinScreen
+          initialRoomCode={urlRoomCode || ''}
+          onJoined={handleControllerJoined}
+          onCancel={handleCancelMulti}
+          firebaseReady={firebaseReady}
+        />
+      )}
+
+      {/* Mode B Controller: Lobby (waiting for game start) */}
+      {phase === 'lobby' && mode === 'controller' && (
+        <ControllerLobbyScreen roomCode={roomCode} />
+      )}
+
+      {/* Mode B Controller: Playing */}
+      {phase === 'playing' && mode === 'controller' && (
+        <ControllerScreen roomCode={roomCode} onGameEnd={handleGameEnd} />
+      )}
+
+      {/* Result Screen (all modes) */}
+      {phase === 'result' && (
+        <ResultScreen players={finalPlayers} onRestart={handleRestart} />
+      )}
+    </div>
+  );
+}
+
+/* ============================================================
+   RENDER
+   ============================================================ */
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App />);
+</script>
+</body>
+</html>
