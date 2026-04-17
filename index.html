@@ -3,6 +3,23 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="referrer" content="no-referrer">
+<!-- CSP: 外部スクリプトを許可CDNのみに限定し、クリックジャッキングを防止 -->
+<meta http-equiv="Content-Security-Policy" content="
+  default-src 'self';
+  script-src 'self' 'unsafe-inline' 'unsafe-eval'
+    https://unpkg.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net
+    https://www.gstatic.com https://apis.google.com;
+  style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+  font-src 'self' https://fonts.gstatic.com;
+  img-src 'self' data: blob:;
+  connect-src 'self'
+    https://*.firebaseio.com wss://*.firebaseio.com
+    https://*.googleapis.com https://firebase.googleapis.com;
+  frame-src 'none';
+  object-src 'none';
+  base-uri 'self';
+">
 <title>起業人生ゲーム ─ ZEN大 × スタートアップ</title>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
