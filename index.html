@@ -3133,11 +3133,12 @@ function SetupScreen({ numPlayers, onStart }) {
                 value={name}
                 onChange={(e) => {
                   const n = [...names];
-                  n[i] = e.target.value;
+                  n[i] = sanitizeName(e.target.value);
                   setNames(n);
                 }}
                 onFocus={() => setCurrentStep(i)}
                 placeholder={defaultNames[i]}
+                maxLength={10}
                 className="flex-1 px-3 py-2 rounded-lg text-sm focus:outline-none transition-colors"
                 style={{ background: 'rgba(15,23,42,0.6)', color: '#e2e8f0', border: '1px solid rgba(71,85,105,0.4)' }}
               />
