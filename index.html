@@ -3430,7 +3430,7 @@ function useGameEngine(initialPlayers, options = {}) {
 function GameScreen({ players: initialPlayers, onGameEnd }) {
   const engine = useGameEngine(initialPlayers, { onGameEnd });
   const [gameLog, setGameLog] = useState([]);
-  const [show3D, setShow3D] = useState(false);
+  const [show3D, setShow3D] = useState(true);
   const logRef = useRef(null);
 
   // ログ追加
@@ -3898,7 +3898,7 @@ function HostLobbyScreen({ roomCode, onStart, onCancel }) {
    ============================================================ */
 function HostGameScreen({ players: initialPlayers, onGameEnd, roomCode, turnOrder }) {
   const engine = useGameEngine(initialPlayers, { onGameEnd, mode: 'host', roomCode, turnOrder });
-  const [show3D, setShow3D] = useState(false);
+  const [show3D, setShow3D] = useState(true);
 
   return (
     <div className="h-screen bg-gray-900 flex overflow-hidden">
