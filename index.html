@@ -565,10 +565,14 @@ const BOARD = [
     ]
   },
   {
-    id: 12, quarter: 2, type: 'event', colorClass: 'bg-yellow-200 border-yellow-500',
+    id: 12, quarter: 2, type: 'choice', colorClass: 'bg-yellow-200 border-yellow-500',
     title: 'オフ会',
     description: 'オンラインで繋がっていた仲間と初めてリアルで集合！一緒にご飯を食べて語り合い、チームの絆が深まった。',
-    effects: [{ stat: 'sp', value: 25 }, { stat: 'money', value: -5 }]
+    effects: [],
+    choices: [
+      { label: '✅ 参加する', effects: [{ stat: 'sp', value: 25 }, { stat: 'money', value: -5 }] },
+      { label: '🚫 断る', effects: [] }
+    ]
   },
   {
     id: 13, quarter: 2, type: 'startup', colorClass: 'bg-red-200 border-red-500',
