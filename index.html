@@ -758,10 +758,14 @@ const BOARD = [
     skipTurn: true,
   },
   {
-    id: 29, quarter: 3, type: 'startup', colorClass: 'bg-red-200 border-red-500',
+    id: 29, quarter: 3, type: 'choice', colorClass: 'bg-red-200 border-red-500',
     title: 'ピボット（事業転換）',
-    description: '今までのコードを全部捨てる決断。',
-    effects: [{ action: 'halveSP' }, { stat: 'money', value: 20 }]
+    description: '事業の方向性が行き詰まってきた。今までのコードを全部捨てて転換する？',
+    effects: [],
+    choices: [
+      { label: '🔄 ピボットする', effects: [{ action: 'halveSP' }, { stat: 'money', value: 20 }] },
+      { label: '💪 このまま続ける', effects: [{ stat: 'sp', value: -20 }] }
+    ]
   },
   {
     id: 30, quarter: 3, type: 'settlement', colorClass: 'bg-amber-200 border-amber-500',
