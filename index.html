@@ -539,10 +539,14 @@ const BOARD = [
     effects: [{ stat: 'gpa', value: 0.1 }]
   },
   {
-    id: 8, quarter: 1, type: 'startup', colorClass: 'bg-red-200 border-red-500',
+    id: 8, quarter: 1, type: 'choice', colorClass: 'bg-red-200 border-red-500',
     title: '起業体験談',
-    description: '起業サークルのメンバー内にいる起業家の話を聞いて起業欲が高まる。',
-    effects: [{ stat: 'sp', value: 20 }]
+    description: '起業サークルのメンバー内にいる起業家が話をしてくれる。聞く？',
+    effects: [],
+    choices: [
+      { label: '👂 聞く', effects: [{ stat: 'sp', value: 20 }] },
+      { label: '🚶 スキップ', effects: [] }
+    ]
   },
   {
     id: 9, quarter: 1, type: 'zen', colorClass: 'bg-blue-200 border-blue-500',
