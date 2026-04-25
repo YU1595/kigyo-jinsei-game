@@ -820,9 +820,14 @@ const BOARD = [
     }
   },
   {
-    id: 33, quarter: 4, type: 'startup', colorClass: 'bg-red-200 border-red-500',
-    title: '確定申告', description: '領収書の山と格闘。',
-    effects: [{ stat: 'money', value: -10 }, { stat: 'sp', value: 10 }]
+    id: 33, quarter: 4, type: 'choice', colorClass: 'bg-red-200 border-red-500',
+    title: '確定申告',
+    description: '確定申告の季節。領収書の山をどう処理する？',
+    effects: [],
+    choices: [
+      { label: '✏️ 自分でやる', effects: [{ stat: 'money', value: -10 }, { stat: 'sp', value: 10 }] },
+      { label: '👔 税理士に頼む', effects: [{ stat: 'money', value: -20 }, { stat: 'sp', value: 25 }] }
+    ]
   },
   {
     id: 34, quarter: 4, type: 'choice', colorClass: 'bg-yellow-200 border-yellow-500',
