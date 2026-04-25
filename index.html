@@ -672,10 +672,14 @@ const BOARD = [
     dice: { type: 'multiply', multiplier: 1, target: 'money', label: '万円ゲット！' }
   },
   {
-    id: 22, quarter: 3, type: 'zen', colorClass: 'bg-blue-200 border-blue-500',
-    title: '学祭準備で中間レポート忘却',
-    description: '学祭準備で盛り上がりすぎて中間レポートの存在を忘れる。',
-    effects: [{ stat: 'gpa', value: -0.4 }]
+    id: 22, quarter: 3, type: 'choice', colorClass: 'bg-blue-200 border-blue-500',
+    title: '学祭 vs 中間レポート',
+    description: '学祭準備が盛り上がっている。でも中間レポートの締め切りが迫っている…どっちを優先する？',
+    effects: [],
+    choices: [
+      { label: '🎪 学祭に集中', effects: [{ stat: 'gpa', value: -0.4 }] },
+      { label: '📝 レポート優先', effects: [{ stat: 'gpa', value: 0.1 }] }
+    ]
   },
   {
     id: 23, quarter: 3, type: 'startup', colorClass: 'bg-red-200 border-red-500',
