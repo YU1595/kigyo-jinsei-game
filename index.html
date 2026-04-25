@@ -1917,8 +1917,8 @@ function ThreeBoard({ players, currentPlayerPos, currentPlayerId }) {
 
   useEffect(() => {
     if (!mountRef.current) return;
-    const W = mountRef.current.clientWidth || 860;
-    const H = 560;
+    const W = mountRef.current.clientWidth || 1000;
+    const H = 700;
 
     // ── Renderer ──────────────────────────────────────────────
     const renderer = new THREE.WebGLRenderer({ antialias: true });
