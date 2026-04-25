@@ -501,14 +501,10 @@ const BOARD = [
     }
   },
   {
-    id: 3, quarter: 1, type: 'choice', colorClass: 'bg-blue-200 border-blue-500',
+    id: 3, quarter: 1, type: 'zen', colorClass: 'bg-blue-200 border-blue-500',
     title: 'サークルに参加',
-    description: 'サークル宣伝チャンネルからサークルを探して入会。どのサークルにする？',
-    effects: [],
-    choices: [
-      { label: '🚀 起業サークル', effects: [{ stat: 'sp', value: 20 }, { stat: 'money', value: -2 }] },
-      { label: '🎵 普通のサークル', effects: [{ stat: 'sp', value: 10 }] }
-    ]
+    description: 'サークル宣伝チャンネルからサークルを探して入会。',
+    effects: [{ stat: 'sp', value: 10 }]
   },
   {
     id: 4, quarter: 1, type: 'zen', colorClass: 'bg-blue-200 border-blue-500',
