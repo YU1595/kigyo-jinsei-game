@@ -519,10 +519,14 @@ const BOARD = [
     effects: [{ stat: 'gpa', value: -0.2 }]
   },
   {
-    id: 6, quarter: 1, type: 'event', colorClass: 'bg-yellow-200 border-yellow-500',
+    id: 6, quarter: 1, type: 'choice', colorClass: 'bg-yellow-200 border-yellow-500',
     title: '起業サークルの交流会',
     description: 'いろんなバックグラウンドを持つ方と交流できてモチベーションが上がる。',
-    effects: [{ stat: 'money', value: -1 }, { stat: 'sp', value: 15 }]
+    effects: [],
+    choices: [
+      { label: '✅ 参加する', effects: [{ stat: 'money', value: -1 }, { stat: 'sp', value: 15 }] },
+      { label: '🚫 断る', effects: [] }
+    ]
   },
   {
     id: 7, quarter: 1, type: 'zen', colorClass: 'bg-blue-200 border-blue-500',
