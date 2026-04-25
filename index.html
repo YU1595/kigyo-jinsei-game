@@ -721,10 +721,14 @@ const BOARD = [
     },
   },
   {
-    id: 25, quarter: 3, type: 'zen', colorClass: 'bg-blue-200 border-blue-500',
+    id: 25, quarter: 3, type: 'choice', colorClass: 'bg-blue-200 border-blue-500',
     title: '教授との面談',
-    description: 'オフィスアワーで起業の相談に乗ってもらう。',
-    effects: [{ stat: 'sp', value: 30 }, { stat: 'gpa', value: 0.2 }]
+    description: 'オフィスアワーで教授と話せる時間ができた。何を相談する？',
+    effects: [],
+    choices: [
+      { label: '💡 起業の相談', effects: [{ stat: 'sp', value: 30 }, { stat: 'gpa', value: 0.2 }] },
+      { label: '📚 単位の相談', effects: [{ stat: 'gpa', value: 0.5 }] }
+    ]
   },
   {
     id: 26, quarter: 3, type: 'choice', colorClass: 'bg-yellow-200 border-yellow-500',
