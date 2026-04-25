@@ -649,9 +649,14 @@ const BOARD = [
     effects: [], skipTurn: true
   },
   {
-    id: 19, quarter: 2, type: 'startup', colorClass: 'bg-red-200 border-red-500',
-    title: 'インターン生採用', description: '自分より優秀で焦る。',
-    effects: [{ stat: 'money', value: -5 }, { stat: 'sp', value: 20 }]
+    id: 19, quarter: 2, type: 'choice', colorClass: 'bg-red-200 border-red-500',
+    title: 'インターン生採用',
+    description: '優秀なインターン生の応募が来た。自分より優秀かも…採用する？',
+    effects: [],
+    choices: [
+      { label: '✅ 採用する', effects: [{ stat: 'money', value: -5 }, { stat: 'sp', value: 20 }] },
+      { label: '❌ しない', effects: [] }
+    ]
   },
   {
     id: 20, quarter: 2, type: 'settlement', colorClass: 'bg-amber-200 border-amber-500',
