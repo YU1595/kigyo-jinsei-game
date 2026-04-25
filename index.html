@@ -555,10 +555,14 @@ const BOARD = [
 
   // === Q2: 夏 (11-20) ===
   {
-    id: 11, quarter: 2, type: 'event', colorClass: 'bg-green-200 border-green-500',
+    id: 11, quarter: 2, type: 'choice', colorClass: 'bg-green-200 border-green-500',
     title: '地域連携プログラム',
     description: '地域の人たちと交流するプログラムに参加。多様な生き方・価値観に触れ、自分の起業観がアップデートされた。',
-    effects: [{ stat: 'sp', value: 20 }, { stat: 'gpa', value: 0.1 }]
+    effects: [],
+    choices: [
+      { label: '✅ 参加する', effects: [{ stat: 'sp', value: 20 }, { stat: 'gpa', value: 0.1 }] },
+      { label: '🚫 断る', effects: [] }
+    ]
   },
   {
     id: 12, quarter: 2, type: 'event', colorClass: 'bg-yellow-200 border-yellow-500',
