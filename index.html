@@ -867,10 +867,14 @@ const BOARD = [
     effects: [{ action: 'spToMoney' }]
   },
   {
-    id: 37, quarter: 4, type: 'trouble', colorClass: 'bg-yellow-200 border-yellow-500',
+    id: 37, quarter: 4, type: 'choice', colorClass: 'bg-yellow-200 border-yellow-500',
     title: '共同創業者メンタルブレイク',
-    description: '共同創業者が彼女と別れてメンタル崩壊。慰めの飲み代。',
-    effects: [{ stat: 'money', value: -5 }]
+    description: '共同創業者が彼女と別れてメンタル崩壊。どう対応する？',
+    effects: [],
+    choices: [
+      { label: '🍺 飲みに付き合う', effects: [{ stat: 'money', value: -5 }] },
+      { label: '💼 仕事に集中', effects: [{ stat: 'sp', value: -10 }] }
+    ]
   },
   {
     id: 38, quarter: 4, type: 'zen', colorClass: 'bg-blue-200 border-blue-500',
