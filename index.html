@@ -2816,6 +2816,13 @@ function ThreeBoard({ players, currentPlayerPos, currentPlayerId }) {
         if (group.userData.ballMat) group.userData.ballMat.emissiveIntensity = 2.0 + pulse * 1.5;
       });
 
+      // NPCのゆらゆき待機アニメ（ほのかに揺れる）
+      npcGroups.forEach(g => {
+        const ph = g.userData.npcPhase || 0;
+        g.position.y = Math.sin(t * 0.6 + ph) * 0.04;
+        g.rotation.y += 0.003;
+      });
+
       // 現在プレイヤーの脈動リング更新
       const curId = currentPlayerIdRef.current;
       const curPiece = curId ? pieces[curId] : null;
