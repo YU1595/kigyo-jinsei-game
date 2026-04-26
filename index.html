@@ -2411,53 +2411,53 @@ function ThreeBoard({ players, currentPlayerPos, currentPlayerId }) {
     // 噴水（図書館と中央路の間の広場）
     addFountain(-5.5, -5.5);
 
-    // ベンチ（池まわり・各建物前・中央通路沿い）
-    addBench(1.0, 3.8, 0);                   // 池の南
-    addBench(4.3, 2.2, -Math.PI / 2);        // 池の東
-    addBench(0.8, 0.3, Math.PI);             // 池の北
-    addBench(0.6, -4.0, 0);                  // 中央路・南
-    addBench(0.6, -8.0, 0);                  // 中央路・南2
-    addBench(0.6, 7.5, 0);                   // 中央路・北
-    addBench(-10.5, -3.2, Math.PI / 2);      // 図書館前
-    addBench(13.8, 9.5, 0);                  // 食堂前
-    addBench(-14.5, 9.5, 0);                 // 工学部棟前
-    addBench(-10.5, -11.5, 0);               // 講義棟前
-    addBench(14.5, -11.0, Math.PI / 2);      // 研究棟前
+    // ベンチ（各エリアに散在）
+    addBench( 1.2,  3.6,  0);                    // 池の南
+    addBench( 4.5,  1.8, -Math.PI / 2);          // 池の東
+    addBench( 0.5,  0.5,  Math.PI);              // 池の北
+    addBench(-3.5, -2.5,  Math.PI / 4);          // 中央広場・西
+    addBench( 7.0, -5.5, -Math.PI / 3);          // 中央右エリア
+    addBench(-5.5,  6.5,  Math.PI / 6);          // 北西エリア
+    addBench(-11.0, -2.0, Math.PI / 2);          // 図書館脇
+    addBench(12.5,  10.5, -Math.PI / 6);         // 食堂脇
+    addBench(-15.5, 10.8,  Math.PI / 3);         // 工学部棟脇
+    addBench(-11.0, -13.0, Math.PI / 8);         // 講義棟脇
+    addBench(15.0,  -9.5,  Math.PI / 2);         // 研究棟脇
 
-    // 街灯（中央縦道・横道沿い）
-    addStreetLamp(0.6, -15.5);
-    addStreetLamp(0.6, -12.0);
-    addStreetLamp(0.6, -8.5);
-    addStreetLamp(0.6, -5.0);
-    addStreetLamp(0.6, -1.5);
-    addStreetLamp(0.6, 2.0);
-    addStreetLamp(0.6, 5.5);
-    addStreetLamp(0.6, 9.0);
-    addStreetLamp(0.6, 12.5);
-    addStreetLamp(0.6, 16.0);
-    addStreetLamp(-7.5, -10.5);
-    addStreetLamp(7.5, -10.5);
-    addStreetLamp(-15.0, -10.5);
-    addStreetLamp(15.0, -10.5);
+    // 街灯（左縦道・中央縦道・右縦道・横道に分散）
+    addStreetLamp(-18.0, -14.0);   // 左縦道・南
+    addStreetLamp(-18.0,  -5.5);   // 左縦道・中
+    addStreetLamp(-18.0,   6.0);   // 左縦道・北
+    addStreetLamp(-18.0,  14.5);   // 左縦道・北端
+    addStreetLamp(  1.0, -15.0);   // 中央縦道・南端
+    addStreetLamp( -0.8,  -7.5);   // 中央縦道・南
+    addStreetLamp(  1.0,  -1.0);   // 中央縦道・中
+    addStreetLamp( -0.8,   6.5);   // 中央縦道・北
+    addStreetLamp(  1.0,  14.5);   // 中央縦道・北端
+    addStreetLamp( 18.5, -12.5);   // 右縦道・南
+    addStreetLamp( 18.5,  -3.0);   // 右縦道・中
+    addStreetLamp( 18.5,   7.5);   // 右縦道・北
+    addStreetLamp( -8.5, -10.8);   // 横道・西
+    addStreetLamp(  9.5, -10.0);   // 横道・東
 
-    // 花壇（中央広場・建物周辺）
-    addFlowerBed(-4.0, 2.2);                 // 池の西
-    addFlowerBed(2.5, -3.0);                 // 池の南
-    addFlowerBed(-6.0, -5.5, 0.6, 0.6);     // 噴水のそば
-    addFlowerBed(8.5, 8.0);                  // 食堂エリア
-    addFlowerBed(-8.0, 8.5);                 // 工学部エリア
-    addFlowerBed(0.5, -13.5, 0.6, 0.6);     // 講義棟前
+    // 花壇（池周辺・各建物エリアに散在）
+    addFlowerBed(-4.2,  2.0);                    // 池の西
+    addFlowerBed( 6.5, -2.5);                    // 中央右エリア
+    addFlowerBed(-7.5, -6.5, 0.6, 0.6);         // 噴水エリア
+    addFlowerBed(10.0,  7.5);                    // 食堂エリア
+    addFlowerBed(-9.5,  7.0);                    // 工学部エリア
+    addFlowerBed( 3.5, -13.0, 0.6, 0.6);        // 南エリア
 
-    // 自動販売機（各建物前）
-    addVendingMachine(-11.2, -2.5, Math.PI / 2);  // 図書館前
-    addVendingMachine(14.8, -2.5, -Math.PI / 2);  // 体育館前
-    addVendingMachine(1.5, 8.8, Math.PI);          // 部室棟前
-    addVendingMachine(-13.8, 9.0, 0);              // 工学部棟前
+    // 自動販売機（建物近くに斜め向きで設置）
+    addVendingMachine(-11.5, -2.0,  Math.PI / 2);   // 図書館脇
+    addVendingMachine( 15.5, -2.5, -Math.PI / 2);   // 体育館脇
+    addVendingMachine(  2.0,  9.2,  Math.PI);        // 部室棟脇
+    addVendingMachine(-14.5,  8.5,  Math.PI / 6);   // 工学部棟脇
 
-    // 自転車置き場（建物前）
-    addBikeRack(-11.5, -4.5, 0);                  // 図書館前
-    addBikeRack(14.5, -4.5, Math.PI / 2);          // 体育館前
-    addBikeRack(-11.5, -12.5, 0);                  // 講義棟前
+    // 自転車置き場（建物前に角度をつけて設置）
+    addBikeRack(-12.0, -5.0,  Math.PI / 4);         // 図書館前
+    addBikeRack( 15.0, -5.0, -Math.PI / 6);         // 体育館前
+    addBikeRack(-12.0, -13.0, Math.PI / 12);        // 講義棟前
 
     // ── GLBキャラクターコマ（Kenney Mini Characters） ────────────
     // プレイヤーごとに異なるキャラクターモデルを使用
