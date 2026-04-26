@@ -2183,7 +2183,7 @@ function ThreeBoard({ players, currentPlayerPos, currentPlayerId }) {
       const tmpSz  = tmpBox.getSize(new THREE.Vector3());
       const footprintMax = Math.max(tmpSz.x, tmpSz.z);
       const scaleF = (4.0 * (bd.scale || 1.0)) / footprintMax;
-      model.scale.set(scaleF, scaleF, scaleF);
+      model.scale.set(scaleF, scaleF * 0.55, scaleF);
 
       // スケール後の境界ボックスで接地
       const box   = new THREE.Box3().setFromObject(model);
