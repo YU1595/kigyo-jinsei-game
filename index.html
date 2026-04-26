@@ -2289,6 +2289,176 @@ function ThreeBoard({ players, currentPlayerPos, currentPlayerId }) {
       scene.add(cone2);
     });
 
+    // ── キャンパス設備（ベンチ・街灯・花壇・自販機・自転車置き場・噴水） ──
+
+    // ベンチ（座面＋背もたれ＋金属脚）
+    function addBench(x, z, rotY = 0) {
+      const group = new THREE.Group();
+      group.position.set(x, 0, z);
+      group.rotation.y = rotY;
+      const woodMat  = new THREE.MeshStandardMaterial({ color: 0xa0622a, roughness: 0.85, metalness: 0.0 });
+      const metalMat = new THREE.MeshStandardMaterial({ color: 0x707070, roughness: 0.45, metalness: 0.55 });
+      const seat = new THREE.Mesh(new THREE.BoxGeometry(0.90, 0.06, 0.35), woodMat);
+      seat.position.y = 0.30; seat.castShadow = true; group.add(seat);
+      const back = new THREE.Mesh(new THREE.BoxGeometry(0.90, 0.30, 0.05), woodMat);
+      back.position.set(0, 0.47, -0.15); back.castShadow = true; group.add(back);
+      [-0.35, 0.35].forEach(ox => {
+        const leg = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.30, 0.35), metalMat);
+        leg.position.set(ox, 0.15, 0); leg.castShadow = true; group.add(leg);
+      });
+      scene.add(group);
+    }
+
+    // 街灯（ポール＋アーム＋発光球＋PointLight）
+    function addStreetLamp(x, z) {
+      const group = new THREE.Group();
+      group.position.set(x, 0, z);
+      const poleMat = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.5, metalness: 0.8 });
+      const lampMat = new THREE.MeshStandardMaterial({ color: 0xffffcc, emissive: 0xffffcc, emissiveIntensity: 1.8, roughness: 0.2, metalness: 0.3 });
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.055, 1.6, 8), poleMat);
+      pole.position.y = 0.80; pole.castShadow = true; group.add(pole);
+      const arm = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.04, 0.04), poleMat);
+      arm.position.set(0.14, 1.60, 0); group.add(arm);
+      const head = new THREE.Mesh(new THREE.SphereGeometry(0.11, 10, 10), lampMat);
+      head.position.set(0.28, 1.58, 0); group.add(head);
+      const light = new THREE.PointLight(0xffffaa, 0.55, 5.0);
+      light.position.set(0.28, 1.55, 0); group.add(light);
+      scene.add(group);
+    }
+
+    // 花壇（縁＋土＋カラフルな花）
+    function addFlowerBed(x, z, rx = 0.75, rz = 0.75) {
+      const edgeMat = new THREE.MeshStandardMaterial({ color: 0xb08060, roughness: 0.8, metalness: 0.0 });
+      const edge = new THREE.Mesh(new THREE.CylinderGeometry(rx + 0.06, rx + 0.08, 0.14, 16, 1, true), edgeMat);
+      edge.position.set(x, 0.07, z); edge.scale.z = rz / rx; edge.castShadow = true; scene.add(edge);
+      const soilMat = new THREE.MeshStandardMaterial({ color: 0x6b4226, roughness: 1.0, metalness: 0.0 });
+      const soil = new THREE.Mesh(new THREE.CircleGeometry(rx, 16), soilMat);
+      soil.rotation.x = -Math.PI / 2; soil.position.set(x, 0.14, z); soil.scale.set(1, 1, rz / rx); scene.add(soil);
+      const flowerColors = [0xff4488, 0xffcc00, 0xff8800, 0xee44ff, 0xff6666, 0xffaaff, 0x88ffcc, 0xff5555];
+      for (let i = 0; i < 8; i++) {
+        const angle = (i / 8) * Math.PI * 2;
+        const fMat = new THREE.MeshStandardMaterial({ color: flowerColors[i], emissive: flowerColors[i], emissiveIntensity: 0.3, roughness: 0.7 });
+        const f = new THREE.Mesh(new THREE.SphereGeometry(0.10, 7, 7), fMat);
+        f.position.set(x + Math.cos(angle) * rx * 0.55, 0.24, z + Math.sin(angle) * rz * 0.55);
+        scene.add(f);
+      }
+      const cMat = new THREE.MeshStandardMaterial({ color: 0xffff44, emissive: 0xffff44, emissiveIntensity: 0.4, roughness: 0.7 });
+      const cf = new THREE.Mesh(new THREE.SphereGeometry(0.12, 7, 7), cMat);
+      cf.position.set(x, 0.27, z); scene.add(cf);
+    }
+
+    // 自動販売機（本体＋発光パネル）
+    function addVendingMachine(x, z, rotY = 0) {
+      const group = new THREE.Group();
+      group.position.set(x, 0, z); group.rotation.y = rotY;
+      const bodyColors = [0xcc2222, 0x2255cc, 0x22aa44];
+      const bCol = bodyColors[Math.round(Math.abs(x + z)) % 3];
+      const bodyMat  = new THREE.MeshStandardMaterial({ color: bCol, roughness: 0.4, metalness: 0.5 });
+      const frontMat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xeeeeff, emissiveIntensity: 1.0, roughness: 0.2, metalness: 0.1 });
+      const body = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.70, 0.24), bodyMat);
+      body.position.y = 0.35; body.castShadow = true; group.add(body);
+      const panel = new THREE.Mesh(new THREE.BoxGeometry(0.20, 0.38, 0.02), frontMat);
+      panel.position.set(0, 0.42, 0.13); group.add(panel);
+      scene.add(group);
+    }
+
+    // 自転車置き場（逆U型スタンド×3）
+    function addBikeRack(x, z, rotY = 0) {
+      const group = new THREE.Group();
+      group.position.set(x, 0, z); group.rotation.y = rotY;
+      const metalMat = new THREE.MeshStandardMaterial({ color: 0x888888, roughness: 0.4, metalness: 0.8 });
+      for (let i = -1; i <= 1; i++) {
+        const ox = i * 0.28;
+        [-0.10, 0.10].forEach(dx => {
+          const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.48, 8), metalMat);
+          leg.position.set(ox + dx, 0.24, 0); leg.castShadow = true; group.add(leg);
+        });
+        const top = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.22, 8), metalMat);
+        top.rotation.z = Math.PI / 2; top.position.set(ox, 0.48, 0); group.add(top);
+      }
+      const hbar = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.60, 8), metalMat);
+      hbar.rotation.z = Math.PI / 2; hbar.position.set(0, 0.28, 0); group.add(hbar);
+      scene.add(group);
+    }
+
+    // 噴水（石造りの盆＋水面＋台座＋ノズル）
+    function addFountain(x, z) {
+      const stoneMat = new THREE.MeshStandardMaterial({ color: 0xaaaaaa, roughness: 0.7, metalness: 0.2 });
+      const waterMat = new THREE.MeshStandardMaterial({ color: 0x55c8e8, roughness: 0.0, metalness: 0.45, transparent: true, opacity: 0.82 });
+      // 盆の底
+      const floor = new THREE.Mesh(new THREE.CircleGeometry(0.80, 20), stoneMat);
+      floor.rotation.x = -Math.PI / 2; floor.position.set(x, 0.06, z); scene.add(floor);
+      // 盆の壁（openEnded=true の筒）
+      const wall = new THREE.Mesh(new THREE.CylinderGeometry(0.80, 0.85, 0.22, 20, 1, true), stoneMat);
+      wall.position.set(x, 0.17, z); wall.castShadow = true; scene.add(wall);
+      // 水面
+      const water = new THREE.Mesh(new THREE.CircleGeometry(0.76, 20), waterMat);
+      water.rotation.x = -Math.PI / 2; water.position.set(x, 0.27, z); scene.add(water);
+      // 台座
+      const ped = new THREE.Mesh(new THREE.CylinderGeometry(0.10, 0.13, 0.38, 12), stoneMat);
+      ped.position.set(x, 0.46, z); ped.castShadow = true; scene.add(ped);
+      // ノズル球（発光）
+      const nozzleMat = new THREE.MeshStandardMaterial({ color: 0x55c8e8, emissive: 0x55c8e8, emissiveIntensity: 0.7, roughness: 0.1, metalness: 0.3 });
+      const nozzle = new THREE.Mesh(new THREE.SphereGeometry(0.07, 10, 10), nozzleMat);
+      nozzle.position.set(x, 0.68, z); scene.add(nozzle);
+      // 水色ライト
+      const wLight = new THREE.PointLight(0x55c8e8, 0.7, 2.8);
+      wLight.position.set(x, 0.55, z); scene.add(wLight);
+    }
+
+    // ── 設備の配置 ────────────────────────────────────────────────
+
+    // 噴水（図書館と中央路の間の広場）
+    addFountain(-5.5, -5.5);
+
+    // ベンチ（池まわり・各建物前・中央通路沿い）
+    addBench(1.0, 3.8, 0);                   // 池の南
+    addBench(4.3, 2.2, -Math.PI / 2);        // 池の東
+    addBench(0.8, 0.3, Math.PI);             // 池の北
+    addBench(0.6, -4.0, 0);                  // 中央路・南
+    addBench(0.6, -8.0, 0);                  // 中央路・南2
+    addBench(0.6, 7.5, 0);                   // 中央路・北
+    addBench(-10.5, -3.2, Math.PI / 2);      // 図書館前
+    addBench(13.8, 9.5, 0);                  // 食堂前
+    addBench(-14.5, 9.5, 0);                 // 工学部棟前
+    addBench(-10.5, -11.5, 0);               // 講義棟前
+    addBench(14.5, -11.0, Math.PI / 2);      // 研究棟前
+
+    // 街灯（中央縦道・横道沿い）
+    addStreetLamp(0.6, -15.5);
+    addStreetLamp(0.6, -12.0);
+    addStreetLamp(0.6, -8.5);
+    addStreetLamp(0.6, -5.0);
+    addStreetLamp(0.6, -1.5);
+    addStreetLamp(0.6, 2.0);
+    addStreetLamp(0.6, 5.5);
+    addStreetLamp(0.6, 9.0);
+    addStreetLamp(0.6, 12.5);
+    addStreetLamp(0.6, 16.0);
+    addStreetLamp(-7.5, -10.5);
+    addStreetLamp(7.5, -10.5);
+    addStreetLamp(-15.0, -10.5);
+    addStreetLamp(15.0, -10.5);
+
+    // 花壇（中央広場・建物周辺）
+    addFlowerBed(-4.0, 2.2);                 // 池の西
+    addFlowerBed(2.5, -3.0);                 // 池の南
+    addFlowerBed(-6.0, -5.5, 0.6, 0.6);     // 噴水のそば
+    addFlowerBed(8.5, 8.0);                  // 食堂エリア
+    addFlowerBed(-8.0, 8.5);                 // 工学部エリア
+    addFlowerBed(0.5, -13.5, 0.6, 0.6);     // 講義棟前
+
+    // 自動販売機（各建物前）
+    addVendingMachine(-11.2, -2.5, Math.PI / 2);  // 図書館前
+    addVendingMachine(14.8, -2.5, -Math.PI / 2);  // 体育館前
+    addVendingMachine(1.5, 8.8, Math.PI);          // 部室棟前
+    addVendingMachine(-13.8, 9.0, 0);              // 工学部棟前
+
+    // 自転車置き場（建物前）
+    addBikeRack(-11.5, -4.5, 0);                  // 図書館前
+    addBikeRack(14.5, -4.5, Math.PI / 2);          // 体育館前
+    addBikeRack(-11.5, -12.5, 0);                  // 講義棟前
+
     // ── GLBキャラクターコマ（Kenney Mini Characters） ────────────
     // プレイヤーごとに異なるキャラクターモデルを使用
     const PIECE_COLORS_3D = [0x3ecfcc, 0xf7c830, 0xe86050, 0x9060d0];
